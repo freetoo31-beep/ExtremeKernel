@@ -1,4 +1,4 @@
-name: Update KernelSU-Next Submodule Pointer
+name: Update KernelSU-Next to v3.1.0
 
 on:
   workflow_dispatch:
@@ -24,18 +24,18 @@ jobs:
       - name: Sync submodule
         run: git submodule sync
 
-      - name: Initialize submodule using remote branch
-        run: git submodule update --init --remote KernelSU-Next
+      - name: Initialize submodule
+        run: git submodule update --init KernelSU-Next
 
-      - name: Checkout desired commit
+      - name: Checkout tag v3.1.0 inside submodule
         run: |
           cd KernelSU-Next
-          git fetch origin
-          git checkout 1ce19e536de730829b62d0d23dbd96c6ec809e2f
+          git fetch --tags
+          git checkout v3.1.0
           cd ..
 
       - name: Commit updated pointer
         run: |
           git add KernelSU-Next
-          git commit -m "Update KernelSU-Next to 1ce19e5 (SUSFS legacy)" || echo "No changes"
+          git commit -m "Update KernelSU-Next to v3.1.0" || echo "No changes"
           git push origin main
