@@ -1,4 +1,4 @@
-name: Update KernelSU-Next Submodule Pointer
+name: Update KernelSU-Next Submodule Pointer and Patch Version
 
 on:
   workflow_dispatch:
@@ -24,18 +24,28 @@ jobs:
       - name: Sync submodule
         run: git submodule sync
 
-      - name: Initialize submodule using remote branch
-        run: git submodule update --init --remote KernelSU-Next
+      - name: Initialize submodule
+        run: git submodule update --init --recursive KernelSU-Next
 
-      - name: Checkout desired commit
+      - name: Checkout v3.1.0-legacy tag
         run: |
           cd KernelSU-Next
-          git fetch origin
-          git checkout 119b36986b37aaaad798835fee0337e687a0c8ac
+          git fetch --tags
+          git checkout tags/v3.1.0-legacy -b v3.1.0-legacy
           cd ..
 
-      - name: Commit updated pointer
+      - name: Patch Makefile to hardcode KSU_VERSION
+        run: |
+          FILE=KernelSU-Next/Makefile
+          # Backup original
+          cp $FILE $FILE.bak
+          # Overwrite the dynamic version block
+          awk 'BEGIN{skip=0} 
+               /ifdef KSU_GIT_VERSION_VALID/{print "KSU_VERSION := 33100  # for 3.1.0-legacy\nccflags-y += -DKSU_VERSION=$(KSU_VERSION)\n$(info -- KernelSU-Next version: 3.1.0-legacy)"; skip=5; next} 
+               {if(skip>0){skip--; next} print}' $FILE > $FILE.tmp && mv $FILE.tmp $FILE
+
+      - name: Commit updated pointer and patch
         run: |
           git add KernelSU-Next
-          git commit -m "Update KernelSU-Next to 119b369 (SUSFS legacy)" || echo "No changes"
+          git commit -m "Update KernelSU-Next to v3.1.0-legacy and hardcode KSU_VERSION=33100" || echo "No changes to commit"
           git push origin main
