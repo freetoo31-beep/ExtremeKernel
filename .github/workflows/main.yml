@@ -1,0 +1,41 @@
+name: Update KernelSU-Next Submodule Pointer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Set Git identity
+        run: |
+          git config user.name "Devandroid-bit"
+          git config user.email "samirmami533@gmail.com"
+
+      - name: Sync submodule
+        run: git submodule sync
+
+      - name: Initialize submodule using remote branch
+        run: git submodule update --init --remote KernelSU-Next
+
+      - name: Checkout desired commit
+        run: |
+          cd KernelSU-Next
+          git fetch origin
+          git checkout 1ce19e536de730829b62d0d23dbd96c6ec809e2f
+          cd ..
+
+      - name: Commit updated pointer
+        run: |
+          git add KernelSU-Next
+          git commit -m "Update KernelSU-Next to 1ce19e5 (SUSFS legacy)" || echo "No changes"
+          git push origin main
