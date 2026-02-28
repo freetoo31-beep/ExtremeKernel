@@ -1,4 +1,4 @@
-name: Update KernelSU-Next Submodule Pointer and Patch Version
+name: Update KernelSU-Next Submodule Pointer & Patch KSU Version
 
 on:
   workflow_dispatch:
@@ -10,42 +10,44 @@ jobs:
       contents: write
 
     steps:
+      # 1. Checkout the main repo
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: false
 
+      # 2. Configure Git identity
       - name: Set Git identity
         run: |
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: Sync submodule
-        run: git submodule sync
+      # 3. Sync and initialize the submodule
+      - name: Sync and init submodule
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive KernelSU-Next
 
-      - name: Initialize submodule
-        run: git submodule update --init --recursive KernelSU-Next
-
-      - name: Checkout v3.1.0-legacy tag
+      # 4. Checkout the desired commit/tag for KernelSU
+      - name: Checkout KernelSU-Next commit
         run: |
           cd KernelSU-Next
-          git fetch --tags
-          git checkout tags/v3.1.0-legacy -b v3.1.0-legacy
+          git fetch origin legacy
+          git checkout 1ce19e536de730829b62d0d23dbd96c6ec809e2f
           cd ..
 
-      - name: Patch Makefile to hardcode KSU_VERSION
+      # 5. Apply hardcoded KSU version patch
+      - name: Hardcode KSU version to 3.1.0-legacy
         run: |
-          FILE=KernelSU-Next/Makefile
-          # Backup original
-          cp $FILE $FILE.bak
-          # Overwrite the dynamic version block
-          awk 'BEGIN{skip=0} 
-               /ifdef KSU_GIT_VERSION_VALID/{print "KSU_VERSION := 33100  # for 3.1.0-legacy\nccflags-y += -DKSU_VERSION=$(KSU_VERSION)\n$(info -- KernelSU-Next version: 3.1.0-legacy)"; skip=5; next} 
-               {if(skip>0){skip--; next} print}' $FILE > $FILE.tmp && mv $FILE.tmp $FILE
+          FILE="KernelSU-Next/kernel/Kbuild"
+          sed -i 's/^.*KSU_VERSION.*$/KSU_VERSION := 33100/' $FILE
+          echo 'ccflags-y += -DKSU_VERSION=$(KSU_VERSION)' >> $FILE
+          echo '$(info -- KernelSU-Next version: 3.1.0-legacy)' >> $FILE
 
-      - name: Commit updated pointer and patch
+      # 6. Commit updated submodule pointer and patch
+      - name: Commit updated pointer & patch
         run: |
           git add KernelSU-Next
-          git commit -m "Update KernelSU-Next to v3.1.0-legacy and hardcode KSU_VERSION=33100" || echo "No changes to commit"
+          git commit -m "Update KernelSU-Next to 3.1.0-legacy and hardcode KSU_VERSION" || echo "No changes to commit"
           git push origin main
