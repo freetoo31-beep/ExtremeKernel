@@ -1,7 +1,7 @@
-name: Update KernelSU-Next to v3.1.0
+name: Update KernelSU-Next Submodule to v3.1.0-legacy
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   update:
@@ -10,32 +10,38 @@ jobs:
       contents: write
 
     steps:
+      # 1️⃣ Checkout your main repository
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: false
 
+      # 2️⃣ Set Git identity for committing
       - name: Set Git identity
         run: |
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
+      # 3️⃣ Sync submodule URLs from .gitmodules
       - name: Sync submodule
         run: git submodule sync
 
-      - name: Initialize submodule
+      # 4️⃣ Initialize the submodule
+      - name: Initialize KernelSU-Next submodule
         run: git submodule update --init KernelSU-Next
 
-      - name: Checkout tag v3.1.0 inside submodule
+      # 5️⃣ Checkout the v3.1.0-legacy tag in the submodule
+      - name: Checkout KernelSU-Next v3.1.0-legacy
         run: |
           cd KernelSU-Next
           git fetch --tags
-          git checkout v3.1.0
+          git checkout v3.1.0-legacy
           cd ..
 
-      - name: Commit updated pointer
+      # 6️⃣ Commit the updated submodule pointer
+      - name: Commit updated submodule pointer
         run: |
           git add KernelSU-Next
-          git commit -m "Update KernelSU-Next to v3.1.0" || echo "No changes"
+          git commit -m "Update KernelSU-Next to v3.1.0-legacy" || echo "No changes to commit"
           git push origin main
