@@ -608,32 +608,43 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 // AP: Function to check if a wakelock is on the wakelock blocker list
 static bool check_for_block(struct wakeup_source *ws)
 {
-    char wakelock_name[52];
+    char wakelock_name[52] = {0};
     int length;
 
-    // if debug mode on, print every wakelock requested
+    // early exit if ws structure is invalid
+    if (!ws)
+        return false;
+
+    // debug: print every wakelock requested
     if (wl_blocker_debug)
         printk("Boeffla WL blocker: %s requested\n", ws->name);
 
-    // if there is no list of wakelocks to be blocked, exit without further checking
-    if (!wl_blocker_active)
+    // handle only wake locks length 1..50
+    length = strlen(ws->name);
+    if ((length > 50) || (length < 1))
         return false;
 
-    // check if wakelock is in wake lock list to be blocked
-    if (ws)
+    // check if wakelock is in either user-defined list or default list
+    sprintf(wakelock_name, ";%s;", ws->name);
+
+    if (strstr(list_wl_search, wakelock_name) == NULL &&
+        strstr(wakelock_blocker_default, wakelock_name) == NULL)
+        return false;
+
+    // debug: wakelock blocked
+    if (wl_blocker_debug)
+        printk("Boeffla WL blocker: %s blocked\n", ws->name);
+
+    // if currently active, deactivate immediately
+    if (ws->active)
     {
-        // wake lock names handled have maximum length=50 and minimum=1
-        length = strlen(ws->name);
-        if ((length > 50) || (length < 1))
-            return false;
+        wakeup_source_deactivate(ws);
 
-        sprintf(wakelock_name, ";%s;", ws->name);
-
-        if (strstr(list_wl_search, wakelock_name) == NULL)
-            return false;
+        if (wl_blocker_debug)
+            printk("Boeffla WL blocker: %s killed\n", ws->name);
     }
 
-    return false;
+    return true;
 }
 #endif
 
