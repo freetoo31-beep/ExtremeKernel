@@ -672,9 +672,11 @@ static void wakeup_source_report_event(struct wakeup_source *ws, bool hard)
 		/* This is racy, but the counter is approximate anyway. */
 		if (events_check_enabled)
 			ws->wakeup_count++;
-
 		if (!ws->active)
 			wakeup_source_activate(ws);
+
+	if (hard)
+		pm_system_wakeup();
 #ifdef CONFIG_BOEFFLA_WL_BLOCKER
 	}
 #endif
