@@ -1,1 +1,0 @@
-cat /sys/class/misc/boeffla_wakelock_blocker/debug
