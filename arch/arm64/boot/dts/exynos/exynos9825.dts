@@ -5416,7 +5416,7 @@
 			/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
 
 			/* Booting value */
-			boot_info = 60 534000>;
+			boot_info = <60 534000>;
 			/* boot_qos_timeout, boot_freq */
 
 			/* governor data */
