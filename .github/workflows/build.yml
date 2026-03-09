@@ -37,12 +37,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update submodules
         run: |
-          git submodule update --init --recursive
-          git submodule update --remote
+          git submodule sync --recursive
+          git submodule update --init --force --recursive
+      - name: Force Integrate KernelSU-Next
+        run: curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
       - name: Build for d1
-        run: ./workflows.sh -m d1 -k Y -r N
+        run: yes "" | ./workflows.sh -m d1 -k Y -r N
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -57,12 +60,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update submodules
         run: |
           git submodule sync --recursive
           git submodule update --init --force --recursive
+      - name: Force Integrate KernelSU-Next
+        run: curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
       - name: Build for d1xks
-        run: ./workflows.sh -m d1xks -k Y -r N
+        run: yes "" | ./workflows.sh -m d1xks -k Y -r N
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -77,13 +83,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-          token: ${{ secrets.FCK_SUBMODULES }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update submodules
         run: |
           git submodule sync --recursive
           git submodule update --init --force --recursive --remote
+      - name: Force Integrate KernelSU-Next
+        run: curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
       - name: Build for d2s
-        run: ./workflows.sh -m d2s -k Y -r N
+        run: yes "" | ./workflows.sh -m d2s -k Y -r N
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -98,12 +106,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update submodules
         run: |
-          git submodule update --init --recursive
-          git submodule update --remote
+          git submodule sync --recursive
+          git submodule update --init --force --recursive
+      - name: Force Integrate KernelSU-Next
+        run: curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
       - name: Build for d2x
-        run: ./workflows.sh -m d2x -k Y -r N
+        run: yes "" | ./workflows.sh -m d2x -k Y -r N
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -118,14 +129,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update submodules
         run: |
-          git submodule update --init --recursive
-          git submodule update --remote
+          git submodule sync --recursive
+          git submodule update --init --force --recursive
+      - name: Force Integrate KernelSU-Next
+        run: curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
       - name: Build for d2xks
-        run: ./workflows.sh -m d2xks -k Y -r N
+        run: yes "" | ./workflows.sh -m d2xks -k Y -r N
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ExtremeKRNL-Nexus-d2xks
           path: build/out/d2xks/zip
+
