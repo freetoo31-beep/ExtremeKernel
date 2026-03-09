@@ -42,8 +42,11 @@ jobs:
         run: |
           git submodule sync --recursive
           git submodule update --init --force --recursive
-      - name: Force Integrate KernelSU-Next
-        run: curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+      - name: Apply OverlayFS Patch & Integrate KernelSU
+        run: |
+          wget -q https://raw.githubusercontent.com/Kernel-SU/kernel_patches/main/overlayfs/4.14.patch -O /tmp/4.14.patch
+          patch -p1 --forward < /tmp/4.14.patch || true
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
       - name: Build for d1
         run: yes "" | ./workflows.sh -m d1 -k Y -r N
       - name: Upload artifact
@@ -65,8 +68,11 @@ jobs:
         run: |
           git submodule sync --recursive
           git submodule update --init --force --recursive
-      - name: Force Integrate KernelSU-Next
-        run: curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+      - name: Apply OverlayFS Patch & Integrate KernelSU
+        run: |
+          wget -q https://raw.githubusercontent.com/Kernel-SU/kernel_patches/main/overlayfs/4.14.patch -O /tmp/4.14.patch
+          patch -p1 --forward < /tmp/4.14.patch || true
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
       - name: Build for d1xks
         run: yes "" | ./workflows.sh -m d1xks -k Y -r N
       - name: Upload artifact
@@ -87,9 +93,12 @@ jobs:
       - name: Update submodules
         run: |
           git submodule sync --recursive
-          git submodule update --init --force --recursive --remote
-      - name: Force Integrate KernelSU-Next
-        run: curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+          git submodule update --init --force --recursive
+      - name: Apply OverlayFS Patch & Integrate KernelSU
+        run: |
+          wget -q https://raw.githubusercontent.com/Kernel-SU/kernel_patches/main/overlayfs/4.14.patch -O /tmp/4.14.patch
+          patch -p1 --forward < /tmp/4.14.patch || true
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
       - name: Build for d2s
         run: yes "" | ./workflows.sh -m d2s -k Y -r N
       - name: Upload artifact
@@ -111,8 +120,11 @@ jobs:
         run: |
           git submodule sync --recursive
           git submodule update --init --force --recursive
-      - name: Force Integrate KernelSU-Next
-        run: curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+      - name: Apply OverlayFS Patch & Integrate KernelSU
+        run: |
+          wget -q https://raw.githubusercontent.com/Kernel-SU/kernel_patches/main/overlayfs/4.14.patch -O /tmp/4.14.patch
+          patch -p1 --forward < /tmp/4.14.patch || true
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
       - name: Build for d2x
         run: yes "" | ./workflows.sh -m d2x -k Y -r N
       - name: Upload artifact
@@ -134,8 +146,11 @@ jobs:
         run: |
           git submodule sync --recursive
           git submodule update --init --force --recursive
-      - name: Force Integrate KernelSU-Next
-        run: curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+      - name: Apply OverlayFS Patch & Integrate KernelSU
+        run: |
+          wget -q https://raw.githubusercontent.com/Kernel-SU/kernel_patches/main/overlayfs/4.14.patch -O /tmp/4.14.patch
+          patch -p1 --forward < /tmp/4.14.patch || true
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
       - name: Build for d2xks
         run: yes "" | ./workflows.sh -m d2xks -k Y -r N
       - name: Upload artifact
