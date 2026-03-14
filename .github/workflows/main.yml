@@ -1,4 +1,4 @@
-name: Force Update and Fix SuSFS Submodule
+name: Setup Clean SuSFS Submodule
 
 on:
   workflow_dispatch:
@@ -20,16 +20,12 @@ jobs:
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: Deep Cleanup (تنظيف عميق للملفات المؤقتة والمجلدات)
+      - name: Create .gitmodules
         run: |
-          # مسح أي ملفات مخفية أو روابط قديمة تعيق العملية
-          git rm -rf KernelSU-Next || true
-          git rm -rf drivers/kernelsu || true
-          rm -rf .git/modules/KernelSU-Next || true
-          rm -rf .git/modules/drivers/kernelsu || true
-          rm -f .gitmodules
+          touch .gitmodules
+          git add .gitmodules
 
-      - name: Add Submodule and Checkout (إضافة وتحديث مباشر)
+      - name: Add Submodule and Checkout
         run: |
           # إضافة الموديول الجديد بشكل صريح إلى المسار الصحيح
           git submodule add -b legacy_susfs --force https://github.com/Devandroid-bit/KernelSU-Next.git drivers/kernelsu
@@ -40,8 +36,8 @@ jobs:
           git checkout f448093b05ecbf9da4980391459afd0482540a0e
           cd ../..
 
-      - name: Commit and Push (حفظ التغييرات)
+      - name: Commit and Push
         run: |
           git add .gitmodules drivers/kernelsu
-          git commit -m "Force fix submodule: drivers/kernelsu updated to f448093 (SuSFS)" || echo "No changes to commit"
+          git commit -m "Successfully added drivers/kernelsu at f448093 (SuSFS)" || echo "No changes to commit"
           git push origin main
