@@ -1,4 +1,4 @@
-name: Fix Submodules and Update SuSFS
+name: Force Update and Fix SuSFS Submodule
 
 on:
   workflow_dispatch:
@@ -20,36 +20,28 @@ jobs:
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: Surgical Cleanup (حذف الاختصار الزائد)
+      - name: Deep Cleanup (تنظيف عميق للملفات المؤقتة والمجلدات)
         run: |
-          # حذف المجلد الأزرق الموجود في الواجهة الرئيسية لتنظيف المستودع
-          git rm -f KernelSU-Next || true
+          # مسح أي ملفات مخفية أو روابط قديمة تعيق العملية
+          git rm -rf KernelSU-Next || true
+          git rm -rf drivers/kernelsu || true
           rm -rf .git/modules/KernelSU-Next || true
+          rm -rf .git/modules/drivers/kernelsu || true
+          rm -f .gitmodules
 
-      - name: Rewrite .gitmodules (تصحيح ملف الروابط)
+      - name: Add Submodule and Checkout (إضافة وتحديث مباشر)
         run: |
-          # كتابة المسار الصحيح الوحيد الذي يحتاجه الكيرنل
-          echo '[submodule "drivers/kernelsu"]' > .gitmodules
-          echo '	path = drivers/kernelsu' >> .gitmodules
-          echo '	url = https://github.com/Devandroid-bit/KernelSU-Next.git' >> .gitmodules
-          echo '	branch = legacy_susfs' >> .gitmodules
-
-      - name: Initialize correct submodule
-        run: |
-          git add .gitmodules
-          git submodule sync
-          git submodule update --init --force drivers/kernelsu
-
-      - name: Checkout SuSFS Legacy commit (تحديث الاختصار الصحيح)
-        run: |
+          # إضافة الموديول الجديد بشكل صريح إلى المسار الصحيح
+          git submodule add -b legacy_susfs --force https://github.com/Devandroid-bit/KernelSU-Next.git drivers/kernelsu
+          
+          # الدخول للمجلد وتحديث الكود لنسخة التخفي
           cd drivers/kernelsu
           git fetch origin
-          # تغيير الكود إلى نسخة التخفي المتوافقة مع جهازك
           git checkout f448093b05ecbf9da4980391459afd0482540a0e
           cd ../..
 
-      - name: Commit and Push
+      - name: Commit and Push (حفظ التغييرات)
         run: |
-          git add .
-          git commit -m "Fix submodules: keep drivers/kernelsu, remove root, update to f448093" || echo "No changes to commit"
+          git add .gitmodules drivers/kernelsu
+          git commit -m "Force fix submodule: drivers/kernelsu updated to f448093 (SuSFS)" || echo "No changes to commit"
           git push origin main
