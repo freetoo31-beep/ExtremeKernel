@@ -1,12 +1,12 @@
-name: ExtremeKernel Build Workflow (SuSFS Edition)
+name: ExtremeKernel Build (Final Production)
 
 on:
   workflow_dispatch:
     inputs:
       model:
-        description: "Model to build (leave empty to build all)"
-        required: false
-        default: "all"
+        description: "اختر موديل الجهاز للطبخ"
+        required: true
+        default: "d2s"
         type: choice
         options:
         - all
@@ -22,215 +22,48 @@ jobs:
     outputs:
       should_build_all: ${{ github.event.inputs.model == 'all' }}
     steps:
-      - name: Install dependencies
+      - name: Install Build Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig
-      - name: Set should_build_all output
-        run: echo "should_build_all=${{ github.event.inputs.model == 'all' }}" >> $GITHUB_OUTPUT
 
-  build_d1:
+  build:
     needs: setup
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.model == 'd1' || needs.setup.outputs.should_build_all == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [d1, d1xks, d2s, d2x, d2xks]
+    # سيتم بناء الموديل المختار فقط، أو الجميع إذا تم اختيار all
+    if: ${{ github.event.inputs.model == 'all' || github.event.inputs.model == matrix.model }}
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Kernel Source
+        uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Update submodules
-        run: |
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
-      - name: Prepare KernelSU-Next SuSFS paths
-        run: |
-          mv drivers/kernelsu drivers/KernelSU-Next
-          ln -sf KernelSU-Next/kernel drivers/kernelsu
-      - name: Apply LeDrew's 4.14 Adaptations (Learn & Adapt)
-        run: |
-          echo "1. Removing unsupported tracepoints from namei.c..."
-          sed -i 's/trace_inodepath_enabled()/0/g' fs/namei.c
-          sed -i 's/trace_inodepath(nd->path.mnt, nd->path.dentry);/\/\//g' fs/namei.c
-          sed -i 's/if (unlikely(trace_inodepath_enabled())) {/\/\//g' fs/namei.c
-          
-          echo "2. Removing avc spoofing unsupported calls from compiler.h..."
-          sed -i 's/extern bool susfs_is_avc_log_spoofing_enabled;/\/\//g' include/linux/compiler.h
-          sed -i 's/if (susfs_is_avc_log_spoofing_enabled)/\/\//g' include/linux/compiler.h
-          
-          echo "3. Removing reorder_mnt_id from KernelSU hooks..."
-          sed -i 's/susfs_reorder_mnt_id();/\/\//g' drivers/kernelsu/setuid_hook.c
-          
-          echo "4. Fixing readdir.c link errors by adapting to LeDrew's logic..."
-          sed -i 's/if (susfs_is_sus_path(name))/if (0)/g' fs/readdir.c
-      - name: Build for d1
-        run: yes "" | ./workflows.sh -m d1 -k Y -r N
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ExtremeKRNL-Nexus-d1-SuSFS
-          path: build/out/d1/zip
+          fetch-depth: 1
 
-  build_d1xks:
-    needs: setup
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.model == 'd1xks' || needs.setup.outputs.should_build_all == 'true' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Update submodules
+      - name: Prepare KernelSU-Next & SuSFS Paths
         run: |
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
-      - name: Prepare KernelSU-Next SuSFS paths
-        run: |
-          mv drivers/kernelsu drivers/KernelSU-Next
-          ln -sf KernelSU-Next/kernel drivers/kernelsu
-      - name: Apply LeDrew's 4.14 Adaptations (Learn & Adapt)
-        run: |
-          echo "1. Removing unsupported tracepoints from namei.c..."
-          sed -i 's/trace_inodepath_enabled()/0/g' fs/namei.c
-          sed -i 's/trace_inodepath(nd->path.mnt, nd->path.dentry);/\/\//g' fs/namei.c
-          sed -i 's/if (unlikely(trace_inodepath_enabled())) {/\/\//g' fs/namei.c
-          
-          echo "2. Removing avc spoofing unsupported calls from compiler.h..."
-          sed -i 's/extern bool susfs_is_avc_log_spoofing_enabled;/\/\//g' include/linux/compiler.h
-          sed -i 's/if (susfs_is_avc_log_spoofing_enabled)/\/\//g' include/linux/compiler.h
-          
-          echo "3. Removing reorder_mnt_id from KernelSU hooks..."
-          sed -i 's/susfs_reorder_mnt_id();/\/\//g' drivers/kernelsu/setuid_hook.c
-          
-          echo "4. Fixing readdir.c link errors by adapting to LeDrew's logic..."
-          sed -i 's/if (susfs_is_sus_path(name))/if (0)/g' fs/readdir.c
-      - name: Build for d1xks
-        run: yes "" | ./workflows.sh -m d1xks -k Y -r N
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ExtremeKRNL-Nexus-d1xks-SuSFS
-          path: build/out/d1xks/zip
+          # الخدعة لضمان قراءة ملفات الروت من المسار الصحيح
+          if [ -d "drivers/kernelsu" ]; then
+            mv drivers/kernelsu drivers/KernelSU-Next-Source
+            ln -sf KernelSU-Next-Source/kernel drivers/kernelsu
+            echo "✅ KernelSU paths prepared successfully."
+          else
+            echo "❌ Error: drivers/kernelsu not found. Run main.yml first!"
+            exit 1
+          fi
 
-  build_d2s:
-    needs: setup
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.model == 'd2s' || needs.setup.outputs.should_build_all == 'true' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Update submodules
+      - name: Build ExtremeKernel (${{ matrix.model }})
         run: |
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
-      - name: Prepare KernelSU-Next SuSFS paths
-        run: |
-          mv drivers/kernelsu drivers/KernelSU-Next
-          ln -sf KernelSU-Next/kernel drivers/kernelsu
-      - name: Apply LeDrew's 4.14 Adaptations (Learn & Adapt)
-        run: |
-          echo "1. Removing unsupported tracepoints from namei.c..."
-          sed -i 's/trace_inodepath_enabled()/0/g' fs/namei.c
-          sed -i 's/trace_inodepath(nd->path.mnt, nd->path.dentry);/\/\//g' fs/namei.c
-          sed -i 's/if (unlikely(trace_inodepath_enabled())) {/\/\//g' fs/namei.c
-          
-          echo "2. Removing avc spoofing unsupported calls from compiler.h..."
-          sed -i 's/extern bool susfs_is_avc_log_spoofing_enabled;/\/\//g' include/linux/compiler.h
-          sed -i 's/if (susfs_is_avc_log_spoofing_enabled)/\/\//g' include/linux/compiler.h
-          
-          echo "3. Removing reorder_mnt_id from KernelSU hooks..."
-          sed -i 's/susfs_reorder_mnt_id();/\/\//g' drivers/kernelsu/setuid_hook.c
-          
-          echo "4. Fixing readdir.c link errors by adapting to LeDrew's logic..."
-          sed -i 's/if (susfs_is_sus_path(name))/if (0)/g' fs/readdir.c
-      - name: Build for d2s
-        run: yes "" | ./workflows.sh -m d2s -k Y -r N
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ExtremeKRNL-Nexus-d2s-SuSFS
-          path: build/out/d2s/zip
+          # نمرر أمر نعم لتخطي أي أسئلة أثناء ضبط الـ config
+          yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-  build_d2x:
-    needs: setup
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.model == 'd2x' || needs.setup.outputs.should_build_all == 'true' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Update submodules
-        run: |
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
-      - name: Prepare KernelSU-Next SuSFS paths
-        run: |
-          mv drivers/kernelsu drivers/KernelSU-Next
-          ln -sf KernelSU-Next/kernel drivers/kernelsu
-      - name: Apply LeDrew's 4.14 Adaptations (Learn & Adapt)
-        run: |
-          echo "1. Removing unsupported tracepoints from namei.c..."
-          sed -i 's/trace_inodepath_enabled()/0/g' fs/namei.c
-          sed -i 's/trace_inodepath(nd->path.mnt, nd->path.dentry);/\/\//g' fs/namei.c
-          sed -i 's/if (unlikely(trace_inodepath_enabled())) {/\/\//g' fs/namei.c
-          
-          echo "2. Removing avc spoofing unsupported calls from compiler.h..."
-          sed -i 's/extern bool susfs_is_avc_log_spoofing_enabled;/\/\//g' include/linux/compiler.h
-          sed -i 's/if (susfs_is_avc_log_spoofing_enabled)/\/\//g' include/linux/compiler.h
-          
-          echo "3. Removing reorder_mnt_id from KernelSU hooks..."
-          sed -i 's/susfs_reorder_mnt_id();/\/\//g' drivers/kernelsu/setuid_hook.c
-          
-          echo "4. Fixing readdir.c link errors by adapting to LeDrew's logic..."
-          sed -i 's/if (susfs_is_sus_path(name))/if (0)/g' fs/readdir.c
-      - name: Build for d2x
-        run: yes "" | ./workflows.sh -m d2x -k Y -r N
-      - name: Upload artifact
+      - name: Upload Flashable Kernel ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: ExtremeKRNL-Nexus-d2x-SuSFS
-          path: build/out/d2x/zip
-
-  build_d2xks:
-    needs: setup
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.model == 'd2xks' || needs.setup.outputs.should_build_all == 'true' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Update submodules
-        run: |
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
-      - name: Prepare KernelSU-Next SuSFS paths
-        run: |
-          mv drivers/kernelsu drivers/KernelSU-Next
-          ln -sf KernelSU-Next/kernel drivers/kernelsu
-      - name: Apply LeDrew's 4.14 Adaptations (Learn & Adapt)
-        run: |
-          echo "1. Removing unsupported tracepoints from namei.c..."
-          sed -i 's/trace_inodepath_enabled()/0/g' fs/namei.c
-          sed -i 's/trace_inodepath(nd->path.mnt, nd->path.dentry);/\/\//g' fs/namei.c
-          sed -i 's/if (unlikely(trace_inodepath_enabled())) {/\/\//g' fs/namei.c
-          
-          echo "2. Removing avc spoofing unsupported calls from compiler.h..."
-          sed -i 's/extern bool susfs_is_avc_log_spoofing_enabled;/\/\//g' include/linux/compiler.h
-          sed -i 's/if (susfs_is_avc_log_spoofing_enabled)/\/\//g' include/linux/compiler.h
-          
-          echo "3. Removing reorder_mnt_id from KernelSU hooks..."
-          sed -i 's/susfs_reorder_mnt_id();/\/\//g' drivers/kernelsu/setuid_hook.c
-          
-          echo "4. Fixing readdir.c link errors by adapting to LeDrew's logic..."
-          sed -i 's/if (susfs_is_sus_path(name))/if (0)/g' fs/readdir.c
-      - name: Build for d2xks
-        run: yes "" | ./workflows.sh -m d2xks -k Y -r N
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ExtremeKRNL-Nexus-d2xks-SuSFS
-          path: build/out/d2xks/zip
+          name: ExtremeKRNL-Nexus-${{ matrix.model }}-SuSFS-v2
+          path: build/out/${{ matrix.model }}/zip/*.zip
 
