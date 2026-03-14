@@ -25,19 +25,19 @@ jobs:
         run: git submodule sync --recursive
 
       - name: Initialize submodule
-        # تم تغيير الاسم هنا ليطابق المسار الفعلي drivers/kernelsu
-        run: git submodule update --init --force --recursive drivers/kernelsu
+        # تم تصحيح الاسم هنا ليطابق المجلد الأزرق في مستودعك
+        run: git submodule update --init --force --recursive KernelSU-Next
 
       - name: Checkout SuSFS Legacy commit
         run: |
-          cd drivers/kernelsu
+          cd KernelSU-Next
           git fetch origin
           # استخدام كود التخفي الصحيح لفرع legacy_susfs
           git checkout f448093b05ecbf9da4980391459afd0482540a0e
-          cd ../..
+          cd ..
 
       - name: Commit updated pointer
         run: |
-          git add drivers/kernelsu
+          git add KernelSU-Next
           git commit -m "Update KernelSU-Next to f448093 (legacy_susfs)" || echo "No changes to commit"
           git push origin main
