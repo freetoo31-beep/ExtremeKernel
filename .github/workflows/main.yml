@@ -1,10 +1,10 @@
-name: Final SuSFS Submodule Setup
+name: Nuclear Git Cleanup (Submodule Remover)
 
 on:
   workflow_dispatch:
 
 jobs:
-  ultimate-fix:
+  cleanup:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,29 +20,24 @@ jobs:
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: Clean Slate (مسح أي أخطاء متبقية)
+      - name: Nuclear Cleanup Action
         run: |
-          # تنظيف كامل للذاكرة لضمان عدم وجود تضارب
-          git rm -rf --cached KernelSU-Next || true
+          echo "1. Removing submodule from Git index..."
           git rm -rf --cached drivers/kernelsu || true
-          rm -rf KernelSU-Next drivers/kernelsu .gitmodules
-          rm -rf .git/modules/KernelSU-Next .git/modules/drivers/kernelsu
-          git add -A
-          git commit -m "Clean slate for correct SuSFS commit" || true
-
-      - name: Add Real Submodule & Checkout
-        run: |
-          # إضافة الموديول بشكل صحيح
-          git submodule add -b legacy_susfs --force https://github.com/Devandroid-bit/KernelSU-Next.git drivers/kernelsu
           
-          # الدخول واستخدام الكود الصحيح الذي أحضرته أنت!
-          cd drivers/kernelsu
-          git fetch origin
-          git checkout ba4422f0556e10f40dda1887631d87a18ede4ec5
-          cd ../..
+          echo "2. Deleting physical files and symlinks..."
+          rm -rf drivers/kernelsu
+          rm -rf .git/modules/drivers/kernelsu
+          
+          echo "3. Cleaning .gitmodules file..."
+          if [ -f .gitmodules ]; then
+            # حذف القسم الخاص بـ kernelsu من ملف الموديولات
+            sed -i '/\[submodule "drivers\/kernelsu"\]/,+3d' .gitmodules || true
+            # إذا أصبح الملف فارغاً، احذفه تماماً
+            [ -s .gitmodules ] || rm .gitmodules
+          fi
 
-      - name: Commit and Push Victory
-        run: |
-          git add .gitmodules drivers/kernelsu
-          git commit -m "JABAR FIX: Successfully added drivers/kernelsu at ba4422f" || true
-          git push origin main 
+          echo "4. Finalizing changes..."
+          git add -A
+          git commit -m "NUCLEAR CLEANUP: Removed all gitlinks and submodules for kernelsu" || true
+          git push origin main
