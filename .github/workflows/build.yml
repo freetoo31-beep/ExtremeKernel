@@ -44,9 +44,24 @@ jobs:
           git submodule update --init --force --recursive
       - name: Prepare KernelSU-Next SuSFS paths
         run: |
-          # الخدعة: نقل المستودع ووضع اختصار يوجه الكيرنل للملفات الصحيحة
           mv drivers/kernelsu drivers/KernelSU-Next
           ln -sf KernelSU-Next/kernel drivers/kernelsu
+      - name: Apply LeDrew's 4.14 Adaptations (Learn & Adapt)
+        run: |
+          echo "1. Removing unsupported tracepoints from namei.c..."
+          sed -i 's/trace_inodepath_enabled()/0/g' fs/namei.c
+          sed -i 's/trace_inodepath(nd->path.mnt, nd->path.dentry);/\/\//g' fs/namei.c
+          sed -i 's/if (unlikely(trace_inodepath_enabled())) {/\/\//g' fs/namei.c
+          
+          echo "2. Removing avc spoofing unsupported calls from compiler.h..."
+          sed -i 's/extern bool susfs_is_avc_log_spoofing_enabled;/\/\//g' include/linux/compiler.h
+          sed -i 's/if (susfs_is_avc_log_spoofing_enabled)/\/\//g' include/linux/compiler.h
+          
+          echo "3. Removing reorder_mnt_id from KernelSU hooks..."
+          sed -i 's/susfs_reorder_mnt_id();/\/\//g' drivers/kernelsu/setuid_hook.c
+          
+          echo "4. Fixing readdir.c link errors by adapting to LeDrew's logic..."
+          sed -i 's/if (susfs_is_sus_path(name))/if (0)/g' fs/readdir.c
       - name: Build for d1
         run: yes "" | ./workflows.sh -m d1 -k Y -r N
       - name: Upload artifact
@@ -72,6 +87,22 @@ jobs:
         run: |
           mv drivers/kernelsu drivers/KernelSU-Next
           ln -sf KernelSU-Next/kernel drivers/kernelsu
+      - name: Apply LeDrew's 4.14 Adaptations (Learn & Adapt)
+        run: |
+          echo "1. Removing unsupported tracepoints from namei.c..."
+          sed -i 's/trace_inodepath_enabled()/0/g' fs/namei.c
+          sed -i 's/trace_inodepath(nd->path.mnt, nd->path.dentry);/\/\//g' fs/namei.c
+          sed -i 's/if (unlikely(trace_inodepath_enabled())) {/\/\//g' fs/namei.c
+          
+          echo "2. Removing avc spoofing unsupported calls from compiler.h..."
+          sed -i 's/extern bool susfs_is_avc_log_spoofing_enabled;/\/\//g' include/linux/compiler.h
+          sed -i 's/if (susfs_is_avc_log_spoofing_enabled)/\/\//g' include/linux/compiler.h
+          
+          echo "3. Removing reorder_mnt_id from KernelSU hooks..."
+          sed -i 's/susfs_reorder_mnt_id();/\/\//g' drivers/kernelsu/setuid_hook.c
+          
+          echo "4. Fixing readdir.c link errors by adapting to LeDrew's logic..."
+          sed -i 's/if (susfs_is_sus_path(name))/if (0)/g' fs/readdir.c
       - name: Build for d1xks
         run: yes "" | ./workflows.sh -m d1xks -k Y -r N
       - name: Upload artifact
@@ -97,6 +128,22 @@ jobs:
         run: |
           mv drivers/kernelsu drivers/KernelSU-Next
           ln -sf KernelSU-Next/kernel drivers/kernelsu
+      - name: Apply LeDrew's 4.14 Adaptations (Learn & Adapt)
+        run: |
+          echo "1. Removing unsupported tracepoints from namei.c..."
+          sed -i 's/trace_inodepath_enabled()/0/g' fs/namei.c
+          sed -i 's/trace_inodepath(nd->path.mnt, nd->path.dentry);/\/\//g' fs/namei.c
+          sed -i 's/if (unlikely(trace_inodepath_enabled())) {/\/\//g' fs/namei.c
+          
+          echo "2. Removing avc spoofing unsupported calls from compiler.h..."
+          sed -i 's/extern bool susfs_is_avc_log_spoofing_enabled;/\/\//g' include/linux/compiler.h
+          sed -i 's/if (susfs_is_avc_log_spoofing_enabled)/\/\//g' include/linux/compiler.h
+          
+          echo "3. Removing reorder_mnt_id from KernelSU hooks..."
+          sed -i 's/susfs_reorder_mnt_id();/\/\//g' drivers/kernelsu/setuid_hook.c
+          
+          echo "4. Fixing readdir.c link errors by adapting to LeDrew's logic..."
+          sed -i 's/if (susfs_is_sus_path(name))/if (0)/g' fs/readdir.c
       - name: Build for d2s
         run: yes "" | ./workflows.sh -m d2s -k Y -r N
       - name: Upload artifact
@@ -122,6 +169,22 @@ jobs:
         run: |
           mv drivers/kernelsu drivers/KernelSU-Next
           ln -sf KernelSU-Next/kernel drivers/kernelsu
+      - name: Apply LeDrew's 4.14 Adaptations (Learn & Adapt)
+        run: |
+          echo "1. Removing unsupported tracepoints from namei.c..."
+          sed -i 's/trace_inodepath_enabled()/0/g' fs/namei.c
+          sed -i 's/trace_inodepath(nd->path.mnt, nd->path.dentry);/\/\//g' fs/namei.c
+          sed -i 's/if (unlikely(trace_inodepath_enabled())) {/\/\//g' fs/namei.c
+          
+          echo "2. Removing avc spoofing unsupported calls from compiler.h..."
+          sed -i 's/extern bool susfs_is_avc_log_spoofing_enabled;/\/\//g' include/linux/compiler.h
+          sed -i 's/if (susfs_is_avc_log_spoofing_enabled)/\/\//g' include/linux/compiler.h
+          
+          echo "3. Removing reorder_mnt_id from KernelSU hooks..."
+          sed -i 's/susfs_reorder_mnt_id();/\/\//g' drivers/kernelsu/setuid_hook.c
+          
+          echo "4. Fixing readdir.c link errors by adapting to LeDrew's logic..."
+          sed -i 's/if (susfs_is_sus_path(name))/if (0)/g' fs/readdir.c
       - name: Build for d2x
         run: yes "" | ./workflows.sh -m d2x -k Y -r N
       - name: Upload artifact
@@ -147,6 +210,22 @@ jobs:
         run: |
           mv drivers/kernelsu drivers/KernelSU-Next
           ln -sf KernelSU-Next/kernel drivers/kernelsu
+      - name: Apply LeDrew's 4.14 Adaptations (Learn & Adapt)
+        run: |
+          echo "1. Removing unsupported tracepoints from namei.c..."
+          sed -i 's/trace_inodepath_enabled()/0/g' fs/namei.c
+          sed -i 's/trace_inodepath(nd->path.mnt, nd->path.dentry);/\/\//g' fs/namei.c
+          sed -i 's/if (unlikely(trace_inodepath_enabled())) {/\/\//g' fs/namei.c
+          
+          echo "2. Removing avc spoofing unsupported calls from compiler.h..."
+          sed -i 's/extern bool susfs_is_avc_log_spoofing_enabled;/\/\//g' include/linux/compiler.h
+          sed -i 's/if (susfs_is_avc_log_spoofing_enabled)/\/\//g' include/linux/compiler.h
+          
+          echo "3. Removing reorder_mnt_id from KernelSU hooks..."
+          sed -i 's/susfs_reorder_mnt_id();/\/\//g' drivers/kernelsu/setuid_hook.c
+          
+          echo "4. Fixing readdir.c link errors by adapting to LeDrew's logic..."
+          sed -i 's/if (susfs_is_sus_path(name))/if (0)/g' fs/readdir.c
       - name: Build for d2xks
         run: yes "" | ./workflows.sh -m d2xks -k Y -r N
       - name: Upload artifact
