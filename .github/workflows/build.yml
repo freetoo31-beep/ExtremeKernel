@@ -1,4 +1,4 @@
-name: ExtremeKernel Build (Final Production)
+name: ExtremeKernel Build (Manual Drivers)
 
 on:
   workflow_dispatch:
@@ -17,26 +17,15 @@ on:
         - d2xks
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      should_build_all: ${{ github.event.inputs.model == 'all' }}
-    steps:
-      - name: Install Build Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig
-
   build:
-    needs: setup
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         model: [d1, d1xks, d2s, d2x, d2xks]
-    
+
     steps:
-      # التحقق: هل هذا الموديل هو المطلوب بناؤه؟
+      # 1. التحقق: هل الموديل الحالي في المصفوفة هو المطلوب؟
       - name: Check if build is needed
         id: check
         run: |
@@ -46,33 +35,34 @@ jobs:
             echo "proceed=false" >> $GITHUB_OUTPUT
           fi
 
+      # 2. تحميل كود الكيرنل (بما أنه يدوي الآن، التحميل سريع جداً)
       - name: Checkout Kernel Source
         if: steps.check.outputs.proceed == 'true'
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
           fetch-depth: 1
 
-      - name: Prepare KernelSU-Next & SuSFS Paths
+      # 3. تثبيت أدوات البناء الأساسية في بيئة Ubuntu
+      - name: Install Dependencies
         if: steps.check.outputs.proceed == 'true'
         run: |
-          if [ -d "drivers/kernelsu" ]; then
-            mv drivers/kernelsu drivers/KernelSU-Next-Source
-            ln -sf KernelSU-Next-Source/kernel drivers/kernelsu
-            echo "✅ KernelSU paths prepared successfully."
-          else
-            echo "❌ Error: drivers/kernelsu not found. Run main.yml first!"
-            exit 1
-          fi
+          sudo apt-get update
+          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc
 
+      # 4. تشغيل عملية الطبخ الفعلية
       - name: Build ExtremeKernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
+          # إعطاء صلاحية التنفيذ للسكربت الرئيسي
+          chmod +x workflows.sh
+          # البدء بالبناء: -k Y (تفعيل KSU) و -r N (عدم استخدام موديولات قديمة)
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      - name: Upload Flashable Kernel ZIP
+      # 5. رفع ملف الـ ZIP الناتج كـ Artifact
+      - name: Upload Flashable Kernel
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ExtremeKRNL-Nexus-${{ matrix.model }}-SuSFS-v2
           path: build/out/${{ matrix.model }}/zip/*.zip
+          if-no-files-found: error
