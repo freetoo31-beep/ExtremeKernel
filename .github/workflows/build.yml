@@ -35,14 +35,14 @@ jobs:
             echo "proceed=false" >> $GITHUB_OUTPUT
           fi
 
-      # 2. تحميل كود الكيرنل (بما أنه يدوي الآن، التحميل سريع جداً)
+      # 2. تحميل كود الكيرنل
       - name: Checkout Kernel Source
         if: steps.check.outputs.proceed == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      # 3. تثبيت أدوات البناء الأساسية في بيئة Ubuntu
+      # 3. تثبيت أدوات البناء الأساسية
       - name: Install Dependencies
         if: steps.check.outputs.proceed == 'true'
         run: |
@@ -53,16 +53,14 @@ jobs:
       - name: Build ExtremeKernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
-          # إعطاء صلاحية التنفيذ للسكربت الرئيسي
           chmod +x workflows.sh
-          # البدء بالبناء: -k Y (تفعيل KSU) و -r N (عدم استخدام موديولات قديمة)
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      # 5. رفع ملف الـ ZIP الناتج كـ Artifact
+      # 5. رفع ملف الـ ZIP الناتج كـ Artifact (المسار الشامل الجديد)
       - name: Upload Flashable Kernel
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ExtremeKRNL-Nexus-${{ matrix.model }}-SuSFS-v2
-          path: build/out/${{ matrix.model }}/zip/*.zip
+          path: build/out/**/*.zip
           if-no-files-found: error
