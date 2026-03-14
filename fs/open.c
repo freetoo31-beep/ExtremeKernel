@@ -1,7 +1,7 @@
 /*
- *  linux/fs/open.c
+ * linux/fs/open.c
  *
- *  Copyright (C) 1991, 1992  Linus Torvalds
+ * Copyright (C) 1991, 1992  Linus Torvalds
  */
 
 #include <linux/string.h>
@@ -36,9 +36,12 @@
 
 #ifdef CONFIG_SECURITY_DEFEX
 #include <linux/defex.h>
+#endif
+
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 #include <linux/susfs.h>
 #endif
+
 
 int do_truncate2(struct vfsmount *mnt, struct dentry *dentry, loff_t length,
 		unsigned int time_attrs, struct file *filp)
