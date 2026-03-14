@@ -1,4 +1,4 @@
-name: Nuke Symlink and Setup SuSFS
+name: Setup Latest SuSFS Submodule
 
 on:
   workflow_dispatch:
@@ -20,33 +20,29 @@ jobs:
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: Destroy Symbolic Link
+      - name: Memory Wipe (تنظيف الروابط المعطوبة)
         run: |
-          # حذف الاختصار الوهمي الذي يمنع Git من العمل
-          rm -f drivers/kernelsu
-          git rm -f drivers/kernelsu || true
-          
-          # تأكيد مسح أي آثار له من الذاكرة المخفية
-          rm -rf .git/modules/drivers/kernelsu || true
-          git config --remove-section submodule.drivers/kernelsu || true
-          
-          # مسح ملف الروابط للبدء من جديد
-          rm -f .gitmodules
-          touch .gitmodules
+          git rm -rf --cached KernelSU-Next || true
+          git rm -rf --cached drivers/kernelsu || true
+          rm -rf KernelSU-Next drivers/kernelsu .gitmodules
+          rm -rf .git/modules/KernelSU-Next .git/modules/drivers/kernelsu
+          git add -A
+          git commit -m "Wipe broken submodules to prepare for the latest code" || true
 
-      - name: Build Real Submodule
+      - name: Add Latest Submodule (سحب أحدث كود محدث)
         run: |
-          # الآن الطريق سالك لإضافة الموديول الحقيقي
+          # إضافة الموديول وسحب أحدث أكواد فرع legacy_susfs التلقائياً
           git submodule add -b legacy_susfs --force https://github.com/Devandroid-bit/KernelSU-Next.git drivers/kernelsu
           
-          # الدخول وتحديث كود التخفي
+          # الدخول للمجلد والتأكد من سحب أحدث تغييرات الرابط المحدث
           cd drivers/kernelsu
           git fetch origin
-          git checkout f448093b05ecbf9da4980391459afd0482540a0e
+          git checkout legacy_susfs
+          git pull origin legacy_susfs
           cd ../..
 
       - name: Commit and Push Victory
         run: |
           git add .gitmodules drivers/kernelsu
-          git commit -m "Victory: Nuked symlink, created real drivers/kernelsu at f448093" || echo "No changes to commit"
+          git commit -m "Successfully added latest drivers/kernelsu from updated legacy_susfs branch" || echo "No changes to commit"
           git push origin main
