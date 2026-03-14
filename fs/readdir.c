@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/fs/readdir.c
+ * linux/fs/readdir.c
  *
- *  Copyright (C) 1995  Linus Torvalds
+ * Copyright (C) 1995  Linus Torvalds
  */
 
 #include <linux/stddef.h>
@@ -22,6 +22,10 @@
 #include <linux/compat.h>
 
 #include <linux/uaccess.h>
+
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+#include <linux/susfs_def.h>
+#endif
 
 int iterate_dir(struct file *file, struct dir_context *ctx)
 {
@@ -65,31 +69,6 @@ out:
 }
 EXPORT_SYMBOL(iterate_dir);
 
-/*
- * POSIX says that a dirent name cannot contain NULL or a '/'.
- *
- * It's not 100% clear what we should really do in this case.
- * The filesystem is clearly corrupted, but returning a hard
- * error means that you now don't see any of the other names
- * either, so that isn't a perfect alternative.
- *
- * And if you return an error, what error do you use? Several
- * filesystems seem to have decided on EUCLEAN being the error
- * code for EFSCORRUPTED, and that may be the error to use. Or
- * just EIO, which is perhaps more obvious to users.
- *
- * In order to see the other file names in the directory, the
- * caller might want to make this a "soft" error: skip the
- * entry, and return the error at the end instead.
- *
- * Note that this should likely do a "memchr(name, 0, len)"
- * check too, since that would be filesystem corruption as
- * well. However, that case can't actually confuse user space,
- * which has to do a strlen() on the name anyway to find the
- * filename length, and the above "soft error" worry means
- * that it's probably better left alone until we have that
- * issue clarified.
- */
 static int verify_dirent_name(const char *name, int len)
 {
 	if (!len)
@@ -98,15 +77,6 @@ static int verify_dirent_name(const char *name, int len)
 		return -EIO;
 	return 0;
 }
-
-/*
- * Traditional linux readdir() handling..
- *
- * "count=1" is a special case, meaning that the buffer is one
- * dirent-structure in size and that the code can't handle more
- * anyway. Thus the special "fillonedir()" function for that
- * case (the low-level handlers don't need to care about this).
- */
 
 #ifdef __ARCH_WANT_OLD_READDIR
 
@@ -130,6 +100,12 @@ static int fillonedir(struct dir_context *ctx, const char *name, int namlen,
 		container_of(ctx, struct readdir_callback, ctx);
 	struct old_linux_dirent __user * dirent;
 	unsigned long d_ino;
+
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+		return 0;
+	}
+#endif
 
 	if (buf->result)
 		return -EINVAL;
@@ -182,10 +158,6 @@ SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
 
 #endif /* __ARCH_WANT_OLD_READDIR */
 
-/*
- * New, all-improved, singing, dancing, iBCS2-compliant getdents()
- * interface. 
- */
 struct linux_dirent {
 	unsigned long	d_ino;
 	unsigned long	d_off;
@@ -210,6 +182,12 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 	unsigned long d_ino;
 	int reclen = ALIGN(offsetof(struct linux_dirent, d_name) + namlen + 2,
 		sizeof(long));
+
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+		return 0;
+	}
+#endif
 
 	buf->error = verify_dirent_name(name, namlen);
 	if (unlikely(buf->error))
@@ -299,6 +277,12 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 		container_of(ctx, struct getdents_callback64, ctx);
 	int reclen = ALIGN(offsetof(struct linux_dirent64, d_name) + namlen + 1,
 		sizeof(u64));
+
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+		return 0;
+	}
+#endif
 
 	buf->error = verify_dirent_name(name, namlen);
 	if (unlikely(buf->error))
@@ -393,6 +377,12 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
 	struct compat_old_linux_dirent __user *dirent;
 	compat_ulong_t d_ino;
 
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+		return 0;
+	}
+#endif
+
 	if (buf->result)
 		return -EINVAL;
 	buf->result = verify_dirent_name(name, namlen);
@@ -466,6 +456,12 @@ static int compat_filldir(struct dir_context *ctx, const char *name, int namlen,
 	compat_ulong_t d_ino;
 	int reclen = ALIGN(offsetof(struct compat_linux_dirent, d_name) +
 		namlen + 2, sizeof(compat_long_t));
+
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+		return 0;
+	}
+#endif
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
