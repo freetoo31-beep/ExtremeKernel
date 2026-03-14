@@ -1,10 +1,10 @@
-name: Update KernelSU-Next Submodule Pointer
+name: Fix Submodules and Update SuSFS
 
 on:
   workflow_dispatch:
 
 jobs:
-  update:
+  fix-and-update:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -14,30 +14,42 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: false
 
       - name: Set Git identity
         run: |
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: Sync submodule
-        run: git submodule sync --recursive
-
-      - name: Initialize submodule
-        # تهيئة الرابط بالاسم الصحيح
-        run: git submodule update --init --force --recursive KernelSU-Next
-
-      - name: Checkout SuSFS Legacy commit
+      - name: Surgical Cleanup (حذف الاختصار الزائد)
         run: |
-          cd KernelSU-Next
+          # حذف المجلد الأزرق الموجود في الواجهة الرئيسية لتنظيف المستودع
+          git rm -f KernelSU-Next || true
+          rm -rf .git/modules/KernelSU-Next || true
+
+      - name: Rewrite .gitmodules (تصحيح ملف الروابط)
+        run: |
+          # كتابة المسار الصحيح الوحيد الذي يحتاجه الكيرنل
+          echo '[submodule "drivers/kernelsu"]' > .gitmodules
+          echo '	path = drivers/kernelsu' >> .gitmodules
+          echo '	url = https://github.com/Devandroid-bit/KernelSU-Next.git' >> .gitmodules
+          echo '	branch = legacy_susfs' >> .gitmodules
+
+      - name: Initialize correct submodule
+        run: |
+          git add .gitmodules
+          git submodule sync
+          git submodule update --init --force drivers/kernelsu
+
+      - name: Checkout SuSFS Legacy commit (تحديث الاختصار الصحيح)
+        run: |
+          cd drivers/kernelsu
           git fetch origin
-          # الانتقال لكود التخفي لفرع legacy_susfs
+          # تغيير الكود إلى نسخة التخفي المتوافقة مع جهازك
           git checkout f448093b05ecbf9da4980391459afd0482540a0e
-          cd ..
+          cd ../..
 
-      - name: Commit updated pointer
+      - name: Commit and Push
         run: |
-          git add KernelSU-Next
-          git commit -m "Update KernelSU-Next to f448093 (SuSFS legacy)" || echo "No changes to commit"
+          git add .
+          git commit -m "Fix submodules: keep drivers/kernelsu, remove root, update to f448093" || echo "No changes to commit"
           git push origin main
