@@ -324,4 +324,34 @@ source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
 source "fs/unicode/Kconfig"
 
+menu "SuSFS Configuration"
+
+config KSU_SUSFS
+	bool "Enable SuSFS Support"
+	default y
+	help
+	  Enable support for SuSFS (KernelSU-based SafetyNet Fix).
+	  This provides advanced root hiding capabilities.
+
+config KSU_SUSFS_SUS_PATH
+	bool "Enable SuSFS Hide Path Support"
+	depends on KSU_SUSFS
+	default y
+	help
+	  Enables hiding of specific paths (like magisk/adb) from apps.
+
+config KSU_SUSFS_OPEN_REDIRECT
+	bool "Enable SuSFS Open Redirect Support"
+	depends on KSU_SUSFS
+	default y
+	help
+	  Enables redirecting file open calls to fake paths to bypass root detection.
+
+config KSU_SUSFS_TRY_UMOUNT
+	bool "Enable SuSFS Try Umount Support"
+	depends on KSU_SUSFS
+	default y
+	help
+	  Enables unmounting of sensitive partitions for specific apps.
+
 endmenu
