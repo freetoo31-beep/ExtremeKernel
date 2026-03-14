@@ -42,10 +42,11 @@ jobs:
         run: |
           git submodule sync --recursive
           git submodule update --init --force --recursive
-      - name: Verify KernelSU-Next SuSFS
+      - name: Prepare KernelSU-Next SuSFS paths
         run: |
-          echo "Using local SuSFS submodule at drivers/kernelsu"
-          ls -la drivers/kernelsu
+          # الخدعة: نقل المستودع ووضع اختصار يوجه الكيرنل للملفات الصحيحة
+          mv drivers/kernelsu drivers/KernelSU-Next
+          ln -sf KernelSU-Next/kernel drivers/kernelsu
       - name: Build for d1
         run: yes "" | ./workflows.sh -m d1 -k Y -r N
       - name: Upload artifact
@@ -67,10 +68,10 @@ jobs:
         run: |
           git submodule sync --recursive
           git submodule update --init --force --recursive
-      - name: Verify KernelSU-Next SuSFS
+      - name: Prepare KernelSU-Next SuSFS paths
         run: |
-          echo "Using local SuSFS submodule at drivers/kernelsu"
-          ls -la drivers/kernelsu
+          mv drivers/kernelsu drivers/KernelSU-Next
+          ln -sf KernelSU-Next/kernel drivers/kernelsu
       - name: Build for d1xks
         run: yes "" | ./workflows.sh -m d1xks -k Y -r N
       - name: Upload artifact
@@ -92,10 +93,10 @@ jobs:
         run: |
           git submodule sync --recursive
           git submodule update --init --force --recursive
-      - name: Verify KernelSU-Next SuSFS
+      - name: Prepare KernelSU-Next SuSFS paths
         run: |
-          echo "Using local SuSFS submodule at drivers/kernelsu"
-          ls -la drivers/kernelsu
+          mv drivers/kernelsu drivers/KernelSU-Next
+          ln -sf KernelSU-Next/kernel drivers/kernelsu
       - name: Build for d2s
         run: yes "" | ./workflows.sh -m d2s -k Y -r N
       - name: Upload artifact
@@ -117,10 +118,10 @@ jobs:
         run: |
           git submodule sync --recursive
           git submodule update --init --force --recursive
-      - name: Verify KernelSU-Next SuSFS
+      - name: Prepare KernelSU-Next SuSFS paths
         run: |
-          echo "Using local SuSFS submodule at drivers/kernelsu"
-          ls -la drivers/kernelsu
+          mv drivers/kernelsu drivers/KernelSU-Next
+          ln -sf KernelSU-Next/kernel drivers/kernelsu
       - name: Build for d2x
         run: yes "" | ./workflows.sh -m d2x -k Y -r N
       - name: Upload artifact
@@ -142,10 +143,10 @@ jobs:
         run: |
           git submodule sync --recursive
           git submodule update --init --force --recursive
-      - name: Verify KernelSU-Next SuSFS
+      - name: Prepare KernelSU-Next SuSFS paths
         run: |
-          echo "Using local SuSFS submodule at drivers/kernelsu"
-          ls -la drivers/kernelsu
+          mv drivers/kernelsu drivers/KernelSU-Next
+          ln -sf KernelSU-Next/kernel drivers/kernelsu
       - name: Build for d2xks
         run: yes "" | ./workflows.sh -m d2xks -k Y -r N
       - name: Upload artifact
