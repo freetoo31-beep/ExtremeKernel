@@ -36,6 +36,8 @@
 
 #ifdef CONFIG_SECURITY_DEFEX
 #include <linux/defex.h>
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+#include <linux/susfs.h>
 #endif
 
 int do_truncate2(struct vfsmount *mnt, struct dentry *dentry, loff_t length,
@@ -1099,6 +1101,21 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 	tmp = getname(filename);
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+	/* فحص إذا كان التطبيق الحالي ليس لديه صلاحيات روت لتضليله */
+	if (!susfs_is_current_ksu_domain()) {
+		struct filename *susfs_tmp = tmp;
+		struct filename *redirected_tmp;
+
+		/* سؤال محرك التخفي: هل هذا المسار مسجل لإعادة التوجيه؟ */
+		redirected_tmp = susfs_get_redirected_path_name(tmp->name);
+		if (!IS_ERR(redirected_tmp)) {
+			/* إذا وجدنا توجيه، نستبدل الملف الأصلي بالوهمي فوراً */
+			tmp = redirected_tmp;
+			putname(susfs_tmp);
+		}
+	}
+#endif
 
 	fd = get_unused_fd_flags(flags);
 	if (fd >= 0) {
@@ -1276,3 +1293,4 @@ int stream_open(struct inode *inode, struct file *filp)
 }
 
 EXPORT_SYMBOL(stream_open);
+
