@@ -1,4 +1,4 @@
-Name: ExtremeKernel Build Workflow (SuSFS Edition)
+name: ExtremeKernel Build Workflow (SuSFS Edition)
 
 on:
   workflow_dispatch:
