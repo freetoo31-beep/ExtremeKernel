@@ -305,9 +305,6 @@ bool susfs_is_sus_android_data_d_name_found(const char *d_name) {
 	}
 
 	list_for_each_entry(cursor, &LH_SUS_PATH_ANDROID_DATA, list) {
-		// - we use strstr here because we cannot retrieve the dentry of fuse_dentry
-		//   and attacker can still use path travesal attack to detect the path, but
-		//   lucky we can check for the uid so it won't let them fool us
 		if (!strncmp(d_name, cursor->info.target_pathname, cursor->path_len) &&
 		    (d_name[cursor->path_len] == '\0' || d_name[cursor->path_len] == '/') &&
 			is_i_uid_in_android_data_not_allowed(cursor->info.i_uid))
@@ -868,6 +865,24 @@ struct filename* susfs_get_redirected_path(unsigned long ino) {
 	}
 	return ERR_PTR(-ENOENT);
 }
+
+/* 🟢 مضافة لنواة 4.14 - التوجيه بالاسم 🟢 */
+struct filename* susfs_get_redirected_path_name(const char *name) {
+	struct st_susfs_open_redirect_hlist *entry;
+	int bkt;
+
+	if (unlikely(!name))
+		return ERR_PTR(-EINVAL);
+
+	hash_for_each(OPEN_REDIRECT_HLIST, bkt, entry, node) {
+		if (!strcmp(entry->target_pathname, name)) {
+			// SuSFS Logging
+			pr_info("SuSFS: Redirecting path [%s] -> [%s]\n", name, entry->redirected_pathname);
+			return getname_kernel(entry->redirected_pathname);
+		}
+	}
+	return ERR_PTR(-ENOENT);
+}
 #endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 
 /* sus_map */
@@ -1259,3 +1274,4 @@ void trace_inodepath(struct vfsmount *mnt, struct dentry *dentry) {
 void susfs_reorder_mnt_id(void) { 
     // Do nothing for 4.14
 }
+
