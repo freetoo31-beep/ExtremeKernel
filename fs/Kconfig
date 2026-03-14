@@ -355,3 +355,6 @@ config KSU_SUSFS_TRY_UMOUNT
 	  Enables unmounting of sensitive partitions for specific apps.
 
 endmenu
+
+endmenu # This closes the main "File systems" menu at the top
+
