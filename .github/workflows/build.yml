@@ -34,19 +34,28 @@ jobs:
       fail-fast: false
       matrix:
         model: [d1, d1xks, d2s, d2x, d2xks]
-    # سيتم بناء الموديل المختار فقط، أو الجميع إذا تم اختيار all
-    if: ${{ github.event.inputs.model == 'all' || github.event.inputs.model == matrix.model }}
     
     steps:
+      # التحقق: هل هذا الموديل هو المطلوب بناؤه؟
+      - name: Check if build is needed
+        id: check
+        run: |
+          if [[ "${{ github.event.inputs.model }}" == "all" || "${{ github.event.inputs.model }}" == "${{ matrix.model }}" ]]; then
+            echo "proceed=true" >> $GITHUB_OUTPUT
+          else
+            echo "proceed=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout Kernel Source
+        if: steps.check.outputs.proceed == 'true'
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
           fetch-depth: 1
 
       - name: Prepare KernelSU-Next & SuSFS Paths
+        if: steps.check.outputs.proceed == 'true'
         run: |
-          # الخدعة لضمان قراءة ملفات الروت من المسار الصحيح
           if [ -d "drivers/kernelsu" ]; then
             mv drivers/kernelsu drivers/KernelSU-Next-Source
             ln -sf KernelSU-Next-Source/kernel drivers/kernelsu
@@ -57,13 +66,13 @@ jobs:
           fi
 
       - name: Build ExtremeKernel (${{ matrix.model }})
+        if: steps.check.outputs.proceed == 'true'
         run: |
-          # نمرر أمر نعم لتخطي أي أسئلة أثناء ضبط الـ config
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
       - name: Upload Flashable Kernel ZIP
+        if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ExtremeKRNL-Nexus-${{ matrix.model }}-SuSFS-v2
           path: build/out/${{ matrix.model }}/zip/*.zip
-
