@@ -1,10 +1,10 @@
-name: Setup Latest SuSFS Submodule
+name: Final SuSFS Submodule Setup
 
 on:
   workflow_dispatch:
 
 jobs:
-  fix-and-update:
+  ultimate-fix:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,29 +20,28 @@ jobs:
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: Memory Wipe (تنظيف الروابط المعطوبة)
+      - name: Clean Slate (مسح أي أخطاء متبقية)
         run: |
+          # تنظيف كامل للذاكرة لضمان عدم وجود تضارب
           git rm -rf --cached KernelSU-Next || true
           git rm -rf --cached drivers/kernelsu || true
           rm -rf KernelSU-Next drivers/kernelsu .gitmodules
           rm -rf .git/modules/KernelSU-Next .git/modules/drivers/kernelsu
           git add -A
-          git commit -m "Wipe broken submodules to prepare for the latest code" || true
+          git commit -m "Clean slate for correct SuSFS commit" || true
 
-      - name: Add Latest Submodule (سحب أحدث كود محدث)
+      - name: Add Real Submodule & Checkout
         run: |
-          # إضافة الموديول وسحب أحدث أكواد فرع legacy_susfs التلقائياً
+          # إضافة الموديول بشكل صحيح
           git submodule add -b legacy_susfs --force https://github.com/Devandroid-bit/KernelSU-Next.git drivers/kernelsu
           
-          # الدخول للمجلد والتأكد من سحب أحدث تغييرات الرابط المحدث
+          # الدخول واستخدام الكود الصحيح الذي أحضرته أنت!
           cd drivers/kernelsu
           git fetch origin
-          git checkout legacy_susfs
-          git pull origin legacy_susfs
+          git checkout ba4422f0556e10f40dda1887631d87a18ede4ec5
           cd ../..
 
       - name: Commit and Push Victory
         run: |
-          git add .gitmodules drivers/kernelsu
-          git commit -m "Successfully added latest drivers/kernelsu from updated legacy_susfs branch" || echo "No changes to commit"
+          git commit -m "JABAR FIX: Successfully added drivers/kernelsu at ba4422f" || true
           git push origin main
