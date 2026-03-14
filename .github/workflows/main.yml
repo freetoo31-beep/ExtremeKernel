@@ -1,4 +1,4 @@
-name: Setup Clean SuSFS Submodule
+name: Nuke Symlink and Setup SuSFS
 
 on:
   workflow_dispatch:
@@ -20,24 +20,33 @@ jobs:
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: Create .gitmodules
+      - name: Destroy Symbolic Link
         run: |
+          # حذف الاختصار الوهمي الذي يمنع Git من العمل
+          rm -f drivers/kernelsu
+          git rm -f drivers/kernelsu || true
+          
+          # تأكيد مسح أي آثار له من الذاكرة المخفية
+          rm -rf .git/modules/drivers/kernelsu || true
+          git config --remove-section submodule.drivers/kernelsu || true
+          
+          # مسح ملف الروابط للبدء من جديد
+          rm -f .gitmodules
           touch .gitmodules
-          git add .gitmodules
 
-      - name: Add Submodule and Checkout
+      - name: Build Real Submodule
         run: |
-          # إضافة الموديول الجديد بشكل صريح إلى المسار الصحيح
+          # الآن الطريق سالك لإضافة الموديول الحقيقي
           git submodule add -b legacy_susfs --force https://github.com/Devandroid-bit/KernelSU-Next.git drivers/kernelsu
           
-          # الدخول للمجلد وتحديث الكود لنسخة التخفي
+          # الدخول وتحديث كود التخفي
           cd drivers/kernelsu
           git fetch origin
           git checkout f448093b05ecbf9da4980391459afd0482540a0e
           cd ../..
 
-      - name: Commit and Push
+      - name: Commit and Push Victory
         run: |
           git add .gitmodules drivers/kernelsu
-          git commit -m "Successfully added drivers/kernelsu at f448093 (SuSFS)" || echo "No changes to commit"
+          git commit -m "Victory: Nuked symlink, created real drivers/kernelsu at f448093" || echo "No changes to commit"
           git push origin main
