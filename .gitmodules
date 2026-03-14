@@ -1,4 +1,4 @@
 [submodule "KernelSU-Next"]
 	path = KernelSU-Next
 	url = https://github.com/Devandroid-bit/KernelSU-Next.git
-	branch = legacy
+	branch = legacy_susfs
