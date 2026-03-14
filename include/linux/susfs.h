@@ -61,7 +61,7 @@ struct st_susfs_hide_sus_mnts_for_non_su_procs {
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
 struct st_susfs_sus_kstat {
 	int                                     is_statically;
-	unsigned long                           target_ino; // the ino after bind mounted or overlayed
+	unsigned long                           target_ino;
 	char                                    target_pathname[SUSFS_MAX_LEN_PATHNAME];
 	unsigned long                           spoofed_ino;
 	unsigned long                           spoofed_dev;
@@ -176,6 +176,15 @@ struct st_susfs_version {
 /***********************/
 /* FORWARD DECLARATION */
 /***********************/
+
+/* --- 4.14 BACKPORT BRIDGE DECLARATIONS --- */
+bool susfs_is_sus_path(const char *name);
+bool trace_inodepath_enabled(void);
+void trace_inodepath(struct vfsmount *mnt, struct dentry *dentry);
+void susfs_reorder_mnt_id(void);
+bool susfs_is_current_ksu_domain(void);
+/* ----------------------------------------- */
+
 /* sus_path */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 void susfs_set_i_state_on_external_dir(void __user **user_info);
@@ -186,7 +195,7 @@ void susfs_add_sus_path_loop(void __user **user_info);
 /* sus_mount */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 void susfs_set_hide_sus_mnts_for_non_su_procs(void __user **user_info);
-#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+#endif
 
 /* sus_kstat */
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
@@ -195,11 +204,12 @@ void susfs_update_sus_kstat(void __user **user_info);
 void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *stat);
 void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino);
 #endif
+
 /* try_umount */
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 void susfs_add_try_umount(void __user **user_info);
 void susfs_try_umount(uid_t uid);
-#endif // #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+#endif
 
 /* spoof_uname */
 #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
@@ -222,6 +232,7 @@ int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 void susfs_add_open_redirect(void __user **user_info);
 struct filename* susfs_get_redirected_path(unsigned long ino);
+struct filename* susfs_get_redirected_path_name(const char *name); /* مضافة لنواة 4.14 */
 #endif
 
 /* sus_map */
@@ -230,14 +241,11 @@ void susfs_add_sus_map(void __user **user_info);
 #endif
 
 void susfs_set_avc_log_spoofing(void __user **user_info);
-
 void susfs_get_enabled_features(void __user **user_info);
 void susfs_show_variant(void __user **user_info);
 void susfs_show_version(void __user **user_info);
-
 void susfs_start_sdcard_monitor_fn(void);
-
-/* susfs_init */
 void susfs_init(void);
 
 #endif
+
