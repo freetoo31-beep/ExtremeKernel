@@ -9,11 +9,11 @@
 #include <linux/security.h>
 #include <linux/uaccess.h>
 #include <linux/compat.h>
+#include "internal.h"
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 #include <linux/susfs_def.h>
 #include "mount.h"
 #endif
-#include "internal.h"
 
 static int flags_by_mnt(int mnt_flags)
 {
@@ -391,3 +391,4 @@ COMPAT_SYSCALL_DEFINE2(ustat, unsigned, dev, struct compat_ustat __user *, u)
 	return 0;
 }
 #endif
+
