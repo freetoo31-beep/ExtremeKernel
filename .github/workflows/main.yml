@@ -43,5 +43,6 @@ jobs:
 
       - name: Commit and Push Victory
         run: |
+          git add .gitmodules drivers/kernelsu
           git commit -m "JABAR FIX: Successfully added drivers/kernelsu at ba4422f" || true
-          git push origin main
+          git push origin main 
