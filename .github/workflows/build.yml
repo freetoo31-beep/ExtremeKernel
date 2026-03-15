@@ -1,4 +1,4 @@
-name: ExtremeKernel Build
+name: ExtremeKernel Build (Stealth Edition)
 
 on:
   workflow_dispatch:
@@ -49,18 +49,42 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc
 
-      # 4. تشغيل عملية الطبخ الفعلية
+      # 4. حقن إعدادات التخفي والاسم والإصدار (اللمسة النهائية)
+      - name: Stealth & Version Injection
+        if: steps.check.outputs.proceed == 'true'
+        run: |
+          echo "Configuring Stealth Features for ${{ matrix.model }}..."
+          
+          # أ- تفعيل خيارات SuSFS في ملف الإعدادات (defconfig)
+          # السكربت سيبحث عن أي ملف ينتهي بـ _defconfig ويحتوي على اسم الموديل ليقوم بتفعيله
+          find arch/arm64/configs/ -name "*${{ matrix.model }}*_defconfig" -exec sh -c '
+            echo "CONFIG_KSU_SUSFS=y" >> "$1"
+            echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "$1"
+            echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> "$1"
+            echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "$1"
+            echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> "$1"
+            echo "CONFIG_KSU_SUSFS_ENABLE_LOG=n" >> "$1"
+          ' _ {} \;
+
+          # ب- تأكيد الاسم والإصدار داخل كود C (للاحتياط)
+          sed -i 's/#define KSU_VERSION_TAG .*/#define KSU_VERSION_TAG "vExtreme-SuSFS"/' drivers/kernelsu/ksu.h
+          
+          echo "Injection Completed!"
+
+      # 5. تشغيل عملية الطبخ الفعلية
       - name: Build ExtremeKernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
+          # تمرير المتغيرات للسكربت لضمان القراءة الصحيحة
+          export KSU_VERSION=32315
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      # 5. رفع ملف الـ ZIP الناتج جاهزاً للتفليش
+      # 6. رفع ملف الـ ZIP الناتج جاهزاً للتفليش
       - name: Upload Flashable Kernel
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ExtremeKRNL-Nexus-${{ matrix.model }}-SuSFS-v2
+          name: ExtremeKRNL-${{ matrix.model }}-Stealth-v1
           path: build/out/**/*.zip
           if-no-files-found: error
