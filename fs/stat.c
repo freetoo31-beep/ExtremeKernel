@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/fs/stat.c
+ * linux/fs/stat.c
  *
- *  Copyright (C) 1991, 1992  Linus Torvalds
+ * Copyright (C) 1991, 1992  Linus Torvalds
  */
 
 #include <linux/export.h>
@@ -20,6 +20,10 @@
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
+
+#ifdef CONFIG_KSU_SUSFS
+#include <linux/susfs.h>
+#endif
 
 /**
  * generic_fillattr - Fill in the basic attributes from the inode struct
@@ -50,6 +54,10 @@ void generic_fillattr(struct inode *inode, struct kstat *stat)
 		stat->result_mask &= ~STATX_ATIME;
 	if (IS_AUTOMOUNT(inode))
 		stat->attributes |= STATX_ATTR_AUTOMOUNT;
+
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+	susfs_sus_ino_for_generic_fillattr(inode->i_ino, stat);
+#endif
 }
 EXPORT_SYMBOL(generic_fillattr);
 
@@ -735,3 +743,4 @@ void inode_set_bytes(struct inode *inode, loff_t bytes)
 }
 
 EXPORT_SYMBOL(inode_set_bytes);
+
