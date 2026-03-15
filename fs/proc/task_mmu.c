@@ -30,7 +30,10 @@
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 #include <linux/delay.h>
 #include "../../drivers/block/zram/zram_drv.h"
+#ifdef CONFIG_KSU_SUSFS
+#include <linux/susfs.h>
 #endif
+
 
 void task_mem(struct seq_file *m, struct mm_struct *mm)
 {
@@ -372,6 +375,9 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 		dev = inode->i_sb->s_dev;
 		ino = inode->i_ino;
 		pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+		susfs_sus_ino_for_show_map_vma(inode->i_ino, &dev, &ino);
+#endif
 	}
 
 	start = vma->vm_start;
@@ -480,6 +486,7 @@ const struct file_operations proc_tid_maps_operations = {
 	.llseek		= seq_lseek,
 	.release	= proc_map_release,
 };
+
 
 /*
  * Proportional Set Size(PSS): my share of RSS.
@@ -2284,3 +2291,4 @@ const struct file_operations proc_tid_numa_maps_operations = {
 	.release	= proc_map_release,
 };
 #endif /* CONFIG_NUMA */
+
