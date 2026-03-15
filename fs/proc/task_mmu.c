@@ -27,12 +27,18 @@
 #include <asm/tlbflush.h>
 #include "internal.h"
 
+/* تصحيح جزء الـ ZRAM */
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 #include <linux/delay.h>
 #include "../../drivers/block/zram/zram_drv.h"
+#endif /* هذا هو الـ endif الذي كان ناقصاً وتسبب في فشل الطبخة */
+
+/* إضافة SuSFS بشكل مستقل وصحيح */
 #ifdef CONFIG_KSU_SUSFS
 #include <linux/susfs.h>
 #endif
+
+/* بداية الدوال البرمجية */
 
 
 void task_mem(struct seq_file *m, struct mm_struct *mm)
