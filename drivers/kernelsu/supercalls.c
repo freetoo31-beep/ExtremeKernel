@@ -96,6 +96,11 @@ static int do_get_info(void __user *arg)
 	}
 	cmd.features = KSU_FEATURE_MAX;
 
+    /* 🟢 كود الربط: إخبار التطبيق بوجود SuSFS لتفعيل زر Unmount 🟢 */
+#ifdef CONFIG_KSU_SUSFS
+    cmd.features |= (1ULL << 16); // تفعيل واجهة SuSFS في تطبيق Next
+#endif
+
 	if (copy_to_user(arg, &cmd, sizeof(cmd))) {
 		pr_err("get_version: copy_to_user failed\n");
 		return -EFAULT;
@@ -619,7 +624,7 @@ static int add_try_umount(void __user *arg)
                 kfree(entry->umountable);
                 kfree(entry);
             }
-            up_write(&mount_list_lock);
+            down_write(&mount_list_lock);
 
             return 0;
         }
@@ -1229,3 +1234,4 @@ int ksu_install_fd(void)
 
 	return fd;
 }
+
