@@ -1,4 +1,4 @@
-name: ExtremeKernel Build (Manual Drivers)
+name: ExtremeKernel Build
 
 on:
   workflow_dispatch:
@@ -49,24 +49,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc
 
-      # 4. حقن رقم الإصدار 32315 بالقوة داخل الكود المصدري (لغة C)
-      - name: Force KernelSU Version 32315 in C Code
-        if: steps.check.outputs.proceed == 'true'
-        run: |
-          echo "Injecting KSU_VERSION directly into ksu.h..."
-          find drivers/kernelsu/ -type f -name "ksu.h" | while read file; do
-            sed -i '1i #undef KSU_VERSION\n#define KSU_VERSION 32315\n' "$file"
-          done
-          echo "Done! Version forced in C Code."
-
-      # 5. تشغيل عملية الطبخ الفعلية
+      # 4. تشغيل عملية الطبخ الفعلية
       - name: Build ExtremeKernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      # 6. رفع ملف الـ ZIP الناتج (المسار الشامل)
+      # 5. رفع ملف الـ ZIP الناتج جاهزاً للتفليش
       - name: Upload Flashable Kernel
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
