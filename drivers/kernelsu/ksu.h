@@ -1,11 +1,11 @@
 #ifndef __KSU_H_KSU
 #define __KSU_H_KSU
 
-/* 🟢 حقن رقم الإصدار بالقوة لإرضاء تطبيق المدير 🟢 */
+/* 🟢 تحديث الاسم إلى legacy_susfs وتنظيف الكود 🟢 */
 #undef KSU_VERSION
-#define KSU_VERSION ‎33100
+#define KSU_VERSION 33100
 #undef KSU_VERSION_TAG
-#define KSU_VERSION_TAG "‎33100"
+#define KSU_VERSION_TAG "legacy_susfs"
 
 #include <linux/types.h>
 #include <linux/workqueue.h>
