@@ -3,9 +3,9 @@
 
 /* 🟢 حقن رقم الإصدار بالقوة لإرضاء تطبيق المدير 🟢 */
 #undef KSU_VERSION
-#define KSU_VERSION 32315
+#define KSU_VERSION ‎33100
 #undef KSU_VERSION_TAG
-#define KSU_VERSION_TAG "32315"
+#define KSU_VERSION_TAG "‎33100"
 
 #include <linux/types.h>
 #include <linux/workqueue.h>
