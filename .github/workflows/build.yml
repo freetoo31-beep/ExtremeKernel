@@ -25,7 +25,6 @@ jobs:
         model: [d1, d1xks, d2s, d2x, d2xks]
 
     steps:
-      # 1. التحقق: هل الموديل الحالي في المصفوفة هو المطلوب؟
       - name: Check if build is needed
         id: check
         run: |
@@ -35,28 +34,32 @@ jobs:
             echo "proceed=false" >> $GITHUB_OUTPUT
           fi
 
-      # 2. تحميل كود الكيرنل
       - name: Checkout Kernel Source
         if: steps.check.outputs.proceed == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      # 3. تثبيت أدوات البناء الأساسية
       - name: Install Dependencies
         if: steps.check.outputs.proceed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc
 
-      # 4. تشغيل عملية الطبخ الفعلية
+      # 👉 هذه هي الخطوة السحرية الجديدة لحل مشكلة (الإصدار 1) 👈
+      - name: Force KernelSU Version 32315
+        if: steps.check.outputs.proceed == 'true'
+        run: |
+          echo "Injecting KernelSU version 32315 into Makefiles..."
+          find drivers/ -type f -name "Makefile" -path "*/kernelsu*" -exec sh -c 'echo "ccflags-y += -DKSU_VERSION=32315" >> "$1"' _ {} \;
+          echo "Done!"
+
       - name: Build ExtremeKernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      # 5. رفع ملف الـ ZIP الناتج كـ Artifact (المسار الشامل الجديد)
       - name: Upload Flashable Kernel
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
