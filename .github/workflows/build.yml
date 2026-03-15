@@ -1,4 +1,4 @@
-name: ExtremeKernel Build (Stealth Edition)
+name: ExtremeKernel - Legacy SuSFS Edition
 
 on:
   workflow_dispatch:
@@ -25,7 +25,7 @@ jobs:
         model: [d1, d1xks, d2s, d2x, d2xks]
 
     steps:
-      # 1. التحقق من الموديل المطلوب بناؤه
+      # 1. التحقق من الموديل
       - name: Check if build is needed
         id: check
         run: |
@@ -42,21 +42,20 @@ jobs:
         with:
           fetch-depth: 1
 
-      # 3. تثبيت أدوات البناء الأساسية
+      # 3. تثبيت أدوات البناء
       - name: Install Dependencies
         if: steps.check.outputs.proceed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc
 
-      # 4. حقن إعدادات التخفي والاسم والإصدار (اللمسة النهائية)
-      - name: Stealth & Version Injection
+      # 4. حقن الإعدادات والاسم (علاج المشاكل يدوياً)
+      - name: Fix Headers & Set Stealth
         if: steps.check.outputs.proceed == 'true'
         run: |
-          echo "Configuring Stealth Features for ${{ matrix.model }}..."
+          echo "Processing ${{ matrix.model }}..."
           
-          # أ- تفعيل خيارات SuSFS في ملف الإعدادات (defconfig)
-          # السكربت سيبحث عن أي ملف ينتهي بـ _defconfig ويحتوي على اسم الموديل ليقوم بتفعيله
+          # أ- تفعيل خيارات SuSFS في الـ defconfig
           find arch/arm64/configs/ -name "*${{ matrix.model }}*_defconfig" -exec sh -c '
             echo "CONFIG_KSU_SUSFS=y" >> "$1"
             echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "$1"
@@ -66,25 +65,26 @@ jobs:
             echo "CONFIG_KSU_SUSFS_ENABLE_LOG=n" >> "$1"
           ' _ {} \;
 
-          # ب- تأكيد الاسم والإصدار داخل كود C (للاحتياط)
-          sed -i 's/#define KSU_VERSION_TAG .*/#define KSU_VERSION_TAG "vExtreme-SuSFS"/' drivers/kernelsu/ksu.h
+          # ب- ضبط رقم الإصدار والاسم legacy_susfs (تنظيف الرموز المخفية آلياً)
+          KSU_H="drivers/kernelsu/ksu.h"
+          sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33100/' $KSU_H
+          sed -i 's/#define KSU_VERSION_TAG .*/#define KSU_VERSION_TAG "legacy_susfs"/' $KSU_H
           
-          echo "Injection Completed!"
+          echo "Injection Done!"
 
-      # 5. تشغيل عملية الطبخ الفعلية
-      - name: Build ExtremeKernel (${{ matrix.model }})
+      # 5. تشغيل عملية البناء
+      - name: Build Kernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
-          # تمرير المتغيرات للسكربت لضمان القراءة الصحيحة
-          export KSU_VERSION=32315
+          export KSU_VERSION=33100
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      # 6. رفع ملف الـ ZIP الناتج جاهزاً للتفليش
-      - name: Upload Flashable Kernel
+      # 6. رفع ملف الـ ZIP
+      - name: Upload Kernel Artifact
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ExtremeKRNL-${{ matrix.model }}-Stealth-v1
+          name: ExtremeKRNL-${{ matrix.model }}-Legacy-SuSFS
           path: build/out/**/*.zip
           if-no-files-found: error
