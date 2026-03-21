@@ -6475,6 +6475,30 @@ CONFIG_SBITMAP=y
 #
 CONFIG_EXTREMEROM_WORKAROUNDS=y
 CONFIG_ONEUI7_WORKAROUND=y
+# --- اضافات المهندس مهند لترسانة الاختراق (Nethunter & MSD) ---
+
+# 1. التخزين الوهمي (لتطبيق MSD وفلاشة الويندوز)
+CONFIG_USB_CONFIGFS_MASS_STORAGE=y
+CONFIG_USB_FILE_STORAGE=y
+
+# 2. قواعد بيانات كالي لينكس (إصلاح مشكلة SYSVIPC)
+CONFIG_SYSVIPC=y
+CONFIG_SYSVIPC_SYSCTL=y
+CONFIG_POSIX_MQUEUE=y
+
+# 3. هجمات الكابل والكيبورد (BadUSB / HID)
+CONFIG_USB_CONFIGFS_F_HID=y
+CONFIG_USB_G_HID=y
+
+# 4. اختراق الواي فاي والشبكات (Monitor Mode & Injection)
+CONFIG_MAC80211=y
+CONFIG_MAC80211_INJECTION=y
+CONFIG_ATH9K_HTC=y
+CONFIG_RTL8187=y
+CONFIG_RTL88XXAU=m
+
+# 5. اختراق ترددات الراديو وكراجات السيارات
+CONFIG_MEDIA_SDR_SUPPORT=y
 
 
 
