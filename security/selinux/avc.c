@@ -42,7 +42,9 @@
 
 #ifdef CONFIG_KSU_SUSFS
 #include <linux/susfs.h>
+extern bool susfs_is_avc_log_spoofing_enabled;
 #endif
+
 
 // ] SEC_SELINUX_PORTING_COMMON
 
