@@ -1,5 +1,5 @@
 /*
- *  linux/fs/namespace.c
+ * linux/fs/namespace.c
  *
  * (C) Copyright Al Viro 2000, 2001
  *	Released under GPL v2.
@@ -45,6 +45,10 @@ extern int ksu_handle_statmount(struct vfsmount *mnt);
 #include "pnode.h"
 #include "internal.h"
 
+/* --- إضافة تعريف الدالة لحل خطأ البناء (Forward Declaration) --- */
+static void shrink_submounts(struct mount *mnt);
+/* ----------------------------------------------------------- */
+
 /* Maximum number of mounts in a mount namespace */
 unsigned int sysctl_mount_max __read_mostly = 100000;
 
@@ -87,6 +91,7 @@ static struct hlist_head *mount_hashtable __read_mostly;
 static struct hlist_head *mountpoint_hashtable __read_mostly;
 static struct kmem_cache *mnt_cache __read_mostly;
 static DECLARE_RWSEM(namespace_sem);
+
 
 /* /sys/fs */
 struct kobject *fs_kobj;
