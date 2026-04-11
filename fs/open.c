@@ -996,7 +996,7 @@ static inline int build_open_flags(int flags, umode_t mode, struct open_flags *o
 	if (flags & O_TRUNC)
 		acc_mode |= MAY_WRITE;
 
-/* Allow the LSM permission hook to distinguish append
+	/* Allow the LSM permission hook to distinguish append
 	   access from general write access. */
 	if (flags & O_APPEND)
 		acc_mode |= MAY_APPEND;
@@ -1107,11 +1107,17 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 
 	/* ----- بداية زرع SUSFS OPEN REDIRECT المتوافق ----- */
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-	if (likely(!susfs_is_current_ksu_domain())) {
-		struct filename *susfs_tmp = susfs_get_redirected_path_name(tmp);
-		if (susfs_tmp) {
-			putname(tmp);
-			tmp = susfs_tmp;
+	if (!susfs_is_current_ksu_domain()) {
+		struct filename *susfs_tmp;
+		struct path path;
+
+		if (!kern_path(tmp->name, LOOKUP_FOLLOW, &path)) {
+			susfs_tmp = susfs_open_redirect_spoof_do_sys_openat(d_backing_inode(path.dentry));
+			if (susfs_tmp) {
+				putname(tmp);
+				tmp = susfs_tmp;
+			}
+			path_put(&path);
 		}
 	}
 #endif
