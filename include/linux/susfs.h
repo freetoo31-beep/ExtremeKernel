@@ -17,6 +17,16 @@
 #define SUSFS_VARIANT "GKI"
 #endif
 
+/* --- تعريفات استباقية لمنع أخطاء 'implicit declaration' في ملفات النظام --- */
+struct mount;
+struct filename;
+struct inode;
+struct kstat;
+struct path;
+struct seq_file;
+struct dentry;
+/* ------------------------------------------------------------------------- */
+
 /*********/
 /* MACRO */
 /*********/
@@ -69,7 +79,7 @@ struct st_susfs_hide_sus_mnts_for_non_su_procs {
 #define KSTAT_SPOOF_ATIME_TV_NSEC (1 << 5)
 #define KSTAT_SPOOF_MTIME_TV_SEC (1 << 6)
 #define KSTAT_SPOOF_MTIME_TV_NSEC (1 << 7)
-#define KSTAT_SPOOF_CTIME_TV_SEC (1 < 8)
+#define KSTAT_SPOOF_CTIME_TV_SEC (1 << 8)
 #define KSTAT_SPOOF_CTIME_TV_NSEC (1 << 9)
 #define KSTAT_SPOOF_BLOCKS (1 << 10)
 #define KSTAT_SPOOF_BLKSIZE (1 << 11)
@@ -199,6 +209,19 @@ struct st_susfs_version {
 /***********************/
 /* FORWARD DECLARATION */
 /***********************/
+
+/* --- الدوال الجسرية للربط مع ملفات النظام VFS --- */
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+bool susfs_is_inode_sus_path(struct inode *inode);
+#endif
+
+#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+bool susfs_try_umount(struct mount *mnt);
+#endif
+
+void susfs_handle_mount(struct mount *newmnt, struct path *path);
+void susfs_copy_mount(struct mount *p, struct mount *q);
+
 /* sus_path */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 void susfs_add_sus_path(void __user **user_info);
@@ -208,20 +231,21 @@ void susfs_add_sus_path_loop(void __user **user_info);
 /* sus_mount */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 void susfs_set_hide_sus_mnts_for_non_su_procs(void __user **user_info);
-#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+#endif
 
 /* sus_kstat */
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
 void susfs_add_sus_kstat(void __user **user_info);
 void susfs_update_sus_kstat(void __user **user_info);
-void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *stat);
-void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino);
+void susfs_generic_fillattr_spoofer(struct inode *inode, struct kstat *stat);
+void susfs_show_map_vma_spoofer(struct inode *inode, dev_t *out_dev, unsigned long *out_ino);
 #endif
-/* try_umount */
+
+/* try_umount - تم تعديل التسمية لمنع التعارض في نواة 4.14 */
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 void susfs_add_try_umount(void __user **user_info);
-void susfs_try_umount(uid_t uid);
-#endif // #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+void susfs_try_umount_by_uid(uid_t uid);
+#endif
 
 /* spoof_uname */
 #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
@@ -243,6 +267,7 @@ int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
 /* open_redirect */
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 void susfs_add_open_redirect(void __user **user_info);
+struct filename *susfs_open_redirect_spoof_do_sys_openat(struct inode *inode);
 #endif
 
 /* sus_map */
@@ -251,14 +276,13 @@ void susfs_add_sus_map(void __user **user_info);
 #endif
 
 void susfs_set_avc_log_spoofing(void __user **user_info);
-
 void susfs_get_enabled_features(void __user **user_info);
 void susfs_show_variant(void __user **user_info);
 void susfs_show_version(void __user **user_info);
-
 void susfs_start_sdcard_monitor_fn(void);
 
 /* susfs_init */
 void susfs_init(void);
 
-#endif
+#endif /* KSU_SUSFS_H */
+
