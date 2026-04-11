@@ -38,10 +38,8 @@
 #include <linux/defex.h>
 #endif
 
-#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+/* SusFS support for both try_umount and open_redirect */
 #include <linux/susfs.h>
-#endif
-
 
 int do_truncate2(struct vfsmount *mnt, struct dentry *dentry, loff_t length,
 		unsigned int time_attrs, struct file *filp)
@@ -1105,7 +1103,12 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 
-	/* ----- بداية زرع SUSFS OPEN REDIRECT المتوافق ----- */
+	/* ----- استدعاء try_umount لرفع تعليق النقاط المعلقة قبل الفتح ----- */
+#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+	susfs_try_umount_by_uid(current_uid().val);
+#endif
+
+	/* ----- إعادة توجيه المسار (OPEN_REDIRECT) إذا كان مفعلاً ----- */
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 	if (!susfs_is_current_ksu_domain()) {
 		struct filename *susfs_tmp;
@@ -1121,7 +1124,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 		}
 	}
 #endif
-	/* -------------------------------------------------- */
+	/* ------------------------------------------------------------- */
 
 	fd = get_unused_fd_flags(flags);
 	if (fd >= 0) {
@@ -1300,4 +1303,3 @@ int stream_open(struct inode *inode, struct file *filp)
 }
 
 EXPORT_SYMBOL(stream_open);
-
