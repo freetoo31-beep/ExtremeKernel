@@ -749,13 +749,6 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
 
-	/* ----- بداية زرع SUSFS AVC SPOOF ----- */
-#ifdef CONFIG_KSU_SUSFS
-	if (susfs_is_avc_log_spoofing_enabled)
-		return; /* الخروج فوراً ومنع تسجيل السجل */
-#endif
-	/* ------------------------------------- */
-
 	audit_log_format(ab, "avc:  %s ",
 			 ad->selinux_audit_data->denied ? "denied" : "granted");
 	avc_dump_av(ab, ad->selinux_audit_data->tclass,
@@ -772,13 +765,6 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
-
-	/* ----- بداية زرع SUSFS AVC SPOOF ----- */
-#ifdef CONFIG_KSU_SUSFS
-	if (susfs_is_avc_log_spoofing_enabled)
-		return; 
-#endif
-	/* ------------------------------------- */
 
 	audit_log_format(ab, " ");
 	avc_dump_query(ab, ad->selinux_audit_data->state,
@@ -801,12 +787,17 @@ noinline int slow_avc_audit(struct selinux_state *state,
 	struct common_audit_data stack_data;
 	struct selinux_audit_data sad;
 
+	/* ----- التعديل الصحيح لزرع SUSFS ----- */
+#ifdef CONFIG_KSU_SUSFS
+	if (susfs_is_avc_log_spoofing_enabled)
+		return 0; /* هذا سيقتل السجل من جذوره ولن يرسله للنظام إطلاقاً */
+#endif
+	/* ------------------------------------- */
+
 	if (!a) {
 		a = &stack_data;
 		a->type = LSM_AUDIT_DATA_NONE;
 	}
-    /* ... بقية الدالة ... */
-
 
 	/*
 	 * When in a RCU walk do the audit on the RCU retry.  This is because
@@ -1312,3 +1303,4 @@ void avc_disable(void)
 		/* kmem_cache_destroy(avc_node_cachep); */
 	}
 }
+
