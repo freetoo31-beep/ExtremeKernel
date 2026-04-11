@@ -1461,41 +1461,5 @@ void susfs_init(void) {
 	SUSFS_LOGI("susfs is initialized! version: " SUSFS_VERSION " \n");
 }
 
-/* --- الدوال الجسرية (Hooks) - يجب أن تكون خارج susfs_init --- */
-
-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-bool susfs_d_lookup_rcu(struct dentry *dentry) {
-    if (!dentry || !dentry->d_inode)
-        return false;
-    return susfs_is_inode_sus_path(dentry->d_inode);
-}
-
-void susfs_d_lookup(struct dentry **found) {
-    if (*found && (*found)->d_inode && susfs_is_inode_sus_path((*found)->d_inode)) {
-        dput(*found);
-        *found = NULL;
-    }
-}
-#endif
-
-#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
-bool susfs_try_umount(struct mount *mnt) {
-    if (susfs_is_current_proc_umounted_app()) {
-        /* يمكن إضافة منطق فحص المسارات هنا مستقبلاً */
-        return false; 
-    }
-    return false;
-}
-#endif
-
-void susfs_handle_mount(struct mount *newmnt, struct path *path) {
-    /* يتم تنفيذ العمليات الخاصة بالتركيب هنا لضمان الإخفاء */
-}
-
-void susfs_copy_mount(struct mount *p, struct mount *q) {
-    /* نقل خصائص الإخفاء من المسار p إلى المسار المستنسخ q */
-}
-
-/* No module exit is needed because it should never be a loadable kernel module */
+/* No module exit is needed becuase it should never be a loadable kernel module */
 //void __init susfs_exit(void)
-
