@@ -45,8 +45,13 @@ extern int ksu_handle_statmount(struct vfsmount *mnt);
 #include "pnode.h"
 #include "internal.h"
 
+/* --- التعديل المطلوب هنا لنجاح بناء نواة 4.14 --- */
+static void shrink_submounts(struct mount *mnt);
+/* ----------------------------------------------- */
+
 /* Maximum number of mounts in a mount namespace */
 unsigned int sysctl_mount_max __read_mostly = 100000;
+
 
 /* @fs.sec -- c4d165e8cb5ea1cc14cdedb9eab23efd642d4d5f -- */
 static unsigned int sys_umount_trace_status;
