@@ -1,51 +1,51 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/fs/proc/base.c
+ * linux/fs/proc/base.c
  *
- *  Copyright (C) 1991, 1992 Linus Torvalds
+ * Copyright (C) 1991, 1992 Linus Torvalds
  *
- *  proc base directory handling functions
+ * proc base directory handling functions
  *
- *  1999, Al Viro. Rewritten. Now it covers the whole per-process part.
- *  Instead of using magical inumbers to determine the kind of object
- *  we allocate and fill in-core inodes upon lookup. They don't even
- *  go into icache. We cache the reference to task_struct upon lookup too.
- *  Eventually it should become a filesystem in its own. We don't use the
- *  rest of procfs anymore.
+ * 1999, Al Viro. Rewritten. Now it covers the whole per-process part.
+ * Instead of using magical inumbers to determine the kind of object
+ * we allocate and fill in-core inodes upon lookup. They don't even
+ * go into icache. We cache the reference to task_struct upon lookup too.
+ * Eventually it should become a filesystem in its own. We don't use the
+ * rest of procfs anymore.
  *
  *
- *  Changelog:
- *  17-Jan-2005
- *  Allan Bezerra
- *  Bruna Moreira <bruna.moreira@indt.org.br>
- *  Edjard Mota <edjard.mota@indt.org.br>
- *  Ilias Biris <ilias.biris@indt.org.br>
- *  Mauricio Lin <mauricio.lin@indt.org.br>
+ * Changelog:
+ * 17-Jan-2005
+ * Allan Bezerra
+ * Bruna Moreira <bruna.moreira@indt.org.br>
+ * Edjard Mota <edjard.mota@indt.org.br>
+ * Ilias Biris <ilias.biris@indt.org.br>
+ * Mauricio Lin <mauricio.lin@indt.org.br>
  *
- *  Embedded Linux Lab - 10LE Instituto Nokia de Tecnologia - INdT
+ * Embedded Linux Lab - 10LE Instituto Nokia de Tecnologia - INdT
  *
- *  A new process specific entry (smaps) included in /proc. It shows the
- *  size of rss for each memory area. The maps entry lacks information
- *  about physical memory size (rss) for each mapped file, i.e.,
- *  rss information for executables and library files.
- *  This additional information is useful for any tools that need to know
- *  about physical memory consumption for a process specific library.
+ * A new process specific entry (smaps) included in /proc. It shows the
+ * size of rss for each memory area. The maps entry lacks information
+ * about physical memory size (rss) for each mapped file, i.e.,
+ * rss information for executables and library files.
+ * This additional information is useful for any tools that need to know
+ * about physical memory consumption for a process specific library.
  *
- *  Changelog:
- *  21-Feb-2005
- *  Embedded Linux Lab - 10LE Instituto Nokia de Tecnologia - INdT
- *  Pud inclusion in the page table walking.
+ * Changelog:
+ * 21-Feb-2005
+ * Embedded Linux Lab - 10LE Instituto Nokia de Tecnologia - INdT
+ * Pud inclusion in the page table walking.
  *
- *  ChangeLog:
- *  10-Mar-2005
- *  10LE Instituto Nokia de Tecnologia - INdT:
- *  A better way to walks through the page table as suggested by Hugh Dickins.
+ * ChangeLog:
+ * 10-Mar-2005
+ * 10LE Instituto Nokia de Tecnologia - INdT:
+ * A better way to walks through the page table as suggested by Hugh Dickins.
  *
- *  Simo Piiroinen <simo.piiroinen@nokia.com>:
- *  Smaps information related to shared, private, clean and dirty pages.
+ * Simo Piiroinen <simo.piiroinen@nokia.com>:
+ * Smaps information related to shared, private, clean and dirty pages.
  *
- *  Paul Mundt <paul.mundt@nokia.com>:
- *  Overall revision about smaps.
+ * Paul Mundt <paul.mundt@nokia.com>:
+ * Overall revision about smaps.
  */
 
 #include <linux/uaccess.h>
@@ -664,7 +664,7 @@ static int proc_pid_syscall(struct seq_file *m, struct pid_namespace *ns,
 #endif /* CONFIG_HAVE_ARCH_TRACEHOOK */
 
 /************************************************************************/
-/*                       Here the fs part begins                        */
+/* Here the fs part begins                        */
 /************************************************************************/
 
 /* permission checks */
@@ -1676,22 +1676,23 @@ static int proc_pid_readlink(struct dentry *dentry, char __user *buffer, int buf
 	int res = -EACCES;
 	struct inode *inode = d_backing_inode(dentry);
 	struct path path;
-	char *tmp_buf;
 
 	/* ----- بداية زرع خطاف SUSFS PROC READLINK ----- */
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 	if (unlikely(test_bit(AS_FLAGS_OPEN_REDIRECT, &inode->i_state))) {
-		tmp_buf = kmalloc(PATH_MAX, GFP_KERNEL);
+		char *tmp_buf = kmalloc(PATH_MAX, GFP_KERNEL);
 		if (!tmp_buf)
 			return -ENOMEM;
 		
 		res = susfs_open_redirect_spoof_do_proc_readlink(inode, tmp_buf, buflen);
 		if (!res) {
-			res = copy_to_user(buffer, tmp_buf, strlen(tmp_buf) + 1);
-			if (res)
+			int spoof_len = strlen(tmp_buf);
+			if (spoof_len > buflen)
+				spoof_len = buflen;
+			if (copy_to_user(buffer, tmp_buf, spoof_len))
 				res = -EFAULT;
 			else
-				res = strlen(tmp_buf);
+				res = spoof_len;
 		}
 		kfree(tmp_buf);
 		if (res != -ENOENT) /* إذا لم يكن خطأ مسار غير موجود، ارجع النتيجة */
@@ -2210,8 +2211,8 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
 	/*
 	 * We need two passes here:
 	 *
-	 *  1) Collect vmas of mapped files with mmap_sem taken
-	 *  2) Release mmap_sem and instantiate entries
+	 * 1) Collect vmas of mapped files with mmap_sem taken
+	 * 2) Release mmap_sem and instantiate entries
 	 *
 	 * otherwise we get lockdep complained, since filldir()
 	 * routine might require mmap_sem taken in might_fault().
@@ -3411,8 +3412,8 @@ out:
  * dcache entries at process exit time.
  *
  * NOTE: This routine is just an optimization so it does not guarantee
- *       that no dcache entries will exist at process exit time it
- *       just makes it very unlikely that any will persist.
+ * that no dcache entries will exist at process exit time it
+ * just makes it very unlikely that any will persist.
  */
 
 void proc_flush_task(struct task_struct *task)
@@ -3944,3 +3945,4 @@ void __init set_proc_pid_nlink(void)
 	nlink_tid = pid_entry_nlink(tid_base_stuff, ARRAY_SIZE(tid_base_stuff));
 	nlink_tgid = pid_entry_nlink(tgid_base_stuff, ARRAY_SIZE(tgid_base_stuff));
 }
+
