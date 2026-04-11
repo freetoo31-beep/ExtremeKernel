@@ -102,7 +102,7 @@ static int fillonedir(struct dir_context *ctx, const char *name, int namlen,
 	unsigned long d_ino;
 
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+	if (unlikely(susfs_is_current_proc_umounted() && namlen == 7 && !memcmp(name, "..5.u.S", 7))) {
 		return 0;
 	}
 #endif
@@ -184,7 +184,7 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 		sizeof(long));
 
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+	if (unlikely(susfs_is_current_proc_umounted() && namlen == 7 && !memcmp(name, "..5.u.S", 7))) {
 		return 0;
 	}
 #endif
@@ -279,7 +279,7 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 		sizeof(u64));
 
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+	if (unlikely(susfs_is_current_proc_umounted() && namlen == 7 && !memcmp(name, "..5.u.S", 7))) {
 		return 0;
 	}
 #endif
@@ -378,7 +378,7 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
 	compat_ulong_t d_ino;
 
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+	if (unlikely(susfs_is_current_proc_umounted() && namlen == 7 && !memcmp(name, "..5.u.S", 7))) {
 		return 0;
 	}
 #endif
@@ -458,7 +458,7 @@ static int compat_filldir(struct dir_context *ctx, const char *name, int namlen,
 		namlen + 2, sizeof(compat_long_t));
 
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+	if (unlikely(susfs_is_current_proc_umounted() && namlen == 7 && !memcmp(name, "..5.u.S", 7))) {
 		return 0;
 	}
 #endif
@@ -532,3 +532,4 @@ COMPAT_SYSCALL_DEFINE3(getdents, unsigned int, fd,
 	return error;
 }
 #endif
+
