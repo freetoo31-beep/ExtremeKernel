@@ -1619,12 +1619,21 @@ static int m_show(struct seq_file *m, void *v)
 {
 	struct proc_mounts *p = m->private;
 	struct mount *r = list_entry(v, struct mount, mnt_list);
+
+	/* --- إضافة خطاف SUSFS لإخفاء المجلدات من القائمة --- */
+#ifdef CONFIG_KSU_SUSFS
+	if (susfs_is_inode_sus_path(d_backing_inode(r->mnt.mnt_root)))
+		return 0;
+#endif
+	/* ----------------------------------------------- */
+
 #ifdef CONFIG_KDP_NS
 	return p->show(m, r->mnt);
 #else
 	return p->show(m, &r->mnt);
 #endif
 }
+
 
 const struct seq_operations mounts_op = {
 	.start	= m_start,
