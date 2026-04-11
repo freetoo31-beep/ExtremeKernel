@@ -10,11 +10,6 @@
 #include <linux/stat.h>
 #include <linux/statfs.h>
 
-/* --- تعريفات الهياكل المفقودة لمنع التحذيرات --- */
-struct mount;
-struct filename;
-/* ----------------------------------------------- */
-
 #define SUSFS_VERSION "v2.1.0"
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,0,0)
 #define SUSFS_VARIANT "NON-GKI"
@@ -204,22 +199,6 @@ struct st_susfs_version {
 /***********************/
 /* FORWARD DECLARATION */
 /***********************/
-
-/* --- الدوال الجسرية المطلوبة للربط مع ملفات النظام --- */
-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-bool susfs_is_inode_sus_path(struct inode *inode);
-bool susfs_d_lookup_rcu(struct dentry *dentry);
-void susfs_d_lookup(struct dentry **found);
-#endif
-
-#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
-bool susfs_try_umount(struct mount *mnt);
-#endif
-
-void susfs_handle_mount(struct mount *newmnt, struct path *path);
-void susfs_copy_mount(struct mount *p, struct mount *q);
-/* -------------------------------------------------- */
-
 /* sus_path */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 void susfs_add_sus_path(void __user **user_info);
@@ -238,12 +217,10 @@ void susfs_update_sus_kstat(void __user **user_info);
 void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *stat);
 void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino);
 #endif
-
 /* try_umount */
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 void susfs_add_try_umount(void __user **user_info);
-/* تم تغيير الاسم لحل مشكلة التعارض */
-void susfs_try_umount_by_uid(uid_t uid); 
+void susfs_try_umount(uid_t uid);
 #endif // #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 
 /* spoof_uname */
@@ -266,9 +243,6 @@ int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
 /* open_redirect */
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 void susfs_add_open_redirect(void __user **user_info);
-/* دوال open.c المفقودة تمت إضافتها هنا */
-extern bool susfs_is_current_ksu_domain(void);
-struct filename *susfs_get_redirected_path_name(struct filename *tmp);
 #endif
 
 /* sus_map */
