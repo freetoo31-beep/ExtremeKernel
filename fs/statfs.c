@@ -15,6 +15,12 @@
 #include "mount.h"
 #endif
 
+/* --- إضافة مكتبة SUSFS الأساسية --- */
+#ifdef CONFIG_KSU_SUSFS
+#include <linux/susfs.h>
+#endif
+/* --------------------------------- */
+
 static int flags_by_mnt(int mnt_flags)
 {
 	int flags = 0;
@@ -74,6 +80,21 @@ static int statfs_by_dentry(struct dentry *dentry, struct kstatfs *buf)
 int vfs_statfs(const struct path *path, struct kstatfs *buf)
 {
 	int error;
+
+	error = security_sb_statfs(path->dentry);
+	if (error)
+		return error;
+
+/* ----- بداية خطاف SUSFS لتزييف إحصائيات التخزين ----- */
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+	if (unlikely(test_bit(AS_FLAGS_OPEN_REDIRECT, &path->dentry->d_inode->i_state))) {
+		error = susfs_open_redirect_spoof_vfs_statfs(path->dentry->d_inode, buf);
+		if (!error)
+			return 0;
+	}
+#endif
+/* ----- نهاية خطاف SUSFS ----- */
+
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 	struct mount *mnt;
 
@@ -391,4 +412,3 @@ COMPAT_SYSCALL_DEFINE2(ustat, unsigned, dev, struct compat_ustat __user *, u)
 	return 0;
 }
 #endif
-
