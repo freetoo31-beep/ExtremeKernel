@@ -42,6 +42,9 @@
 #if defined(CONFIG_KSU_SUSFS_SUS_PATH) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
 #include <linux/susfs_def.h>
 #endif
+#ifdef CONFIG_KSU_SUSFS
+#include <linux/susfs.h>
+#endif
 
 #ifdef CONFIG_FSCRYPT_SDP
 #include <linux/fscrypto_sdp_name.h>
@@ -5192,6 +5195,16 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
 	struct inode *inode = d_inode(dentry);
 
+/* ----- بداية خطاف SUSFS لتزييف الروابط الرمزية ----- */
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+	if (unlikely(test_bit(AS_FLAGS_OPEN_REDIRECT, &inode->i_state))) {
+		int res = susfs_open_redirect_spoof_vfs_readlink(inode, buffer, buflen);
+		if (res != -ENOENT)
+			return res;
+	}
+#endif
+/* ----- نهاية خطاف SUSFS ----- */
+
 	if (unlikely(!(inode->i_opflags & IOP_DEFAULT_READLINK))) {
 		if (unlikely(inode->i_op->readlink))
 			return inode->i_op->readlink(dentry, buffer, buflen);
@@ -5206,6 +5219,7 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 
 	return generic_readlink(dentry, buffer, buflen);
 }
+
 EXPORT_SYMBOL(vfs_readlink);
 
 /**
