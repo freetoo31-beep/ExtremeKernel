@@ -77,9 +77,18 @@ static int statfs_by_dentry(struct dentry *dentry, struct kstatfs *buf)
 	return retval;
 }
 
+/* --- الإعلان المسبق للدالة لتجنب خطأ Implicit Declaration --- */
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+extern int susfs_open_redirect_spoof_vfs_statfs(struct inode *inode, struct kstatfs *buf);
+#endif
+
 int vfs_statfs(const struct path *path, struct kstatfs *buf)
 {
 	int error;
+	/* تم نقل المتغير للأعلى لتجنب خطأ C99 declaration after statement */
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+	struct mount *mnt;
+#endif
 
 	error = security_sb_statfs(path->dentry);
 	if (error)
@@ -96,8 +105,6 @@ int vfs_statfs(const struct path *path, struct kstatfs *buf)
 /* ----- نهاية خطاف SUSFS ----- */
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	struct mount *mnt;
-
 	mnt = real_mount(path->mnt);
 	if (likely(susfs_is_current_proc_umounted())) {
 		for (; mnt->mnt_id >= DEFAULT_KSU_MNT_ID; mnt = mnt->mnt_parent) {}
@@ -412,3 +419,4 @@ COMPAT_SYSCALL_DEFINE2(ustat, unsigned, dev, struct compat_ustat __user *, u)
 	return 0;
 }
 #endif
+
