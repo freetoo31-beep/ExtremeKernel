@@ -22,7 +22,12 @@
 #include <asm/unistd.h>
 
 #ifdef CONFIG_KSU_SUSFS
-#include <linux/susfs.h>
+#include <linux/susfs_def.h>
+#include <linux/version.h>
+#endif
+
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+extern void susfs_generic_fillattr_spoofer(struct inode *inode, struct kstat *stat);
 #endif
 
 /**
@@ -56,7 +61,7 @@ void generic_fillattr(struct inode *inode, struct kstat *stat)
 		stat->attributes |= STATX_ATTR_AUTOMOUNT;
 
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-	susfs_sus_ino_for_generic_fillattr(inode->i_ino, stat);
+	susfs_generic_fillattr_spoofer(inode, stat);
 #endif
 }
 EXPORT_SYMBOL(generic_fillattr);
@@ -743,4 +748,3 @@ void inode_set_bytes(struct inode *inode, loff_t bytes)
 }
 
 EXPORT_SYMBOL(inode_set_bytes);
-
