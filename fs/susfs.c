@@ -228,22 +228,6 @@ bool susfs_is_inode_sus_path(struct inode *inode)
 	}
 	return false;
 }
-
-/* --- الإضافة لمعالجة dcache lookup --- */
-bool susfs_d_lookup_rcu(struct dentry *dentry) {
-	if (unlikely(dentry->d_inode && susfs_is_inode_sus_path(dentry->d_inode)))
-		return true;
-	return false;
-}
-
-void susfs_d_lookup(struct dentry **found) {
-	if (unlikely(*found && (*found)->d_inode && susfs_is_inode_sus_path((*found)->d_inode))) {
-		dput(*found);
-		*found = NULL;
-	}
-}
-/* -------------------------------------- */
-
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 
 /* sus_mount */
@@ -626,7 +610,7 @@ out_copy_to_user:
 	SUSFS_LOGI("CMD_SUSFS_ADD_TRY_UMOUNT -> ret: %d\n", info.err);
 }
 
-void susfs_try_umount_by_uid(uid_t uid) {
+void susfs_try_umount(uid_t uid) {
 	struct st_susfs_try_umount_list *cursor = NULL;
 
 	// We should umount in reversed order
@@ -1145,7 +1129,7 @@ out_copy_to_user:
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_MAP
 
 /* susfs avc log spoofing */
-bool susfs_is_avc_log_spoofing_enabled = false;
+extern bool susfs_is_avc_log_spoofing_enabled;
 
 void susfs_set_avc_log_spoofing(void __user **user_info) {
 	struct st_susfs_avc_log_spoofing info = {0};
@@ -1479,17 +1463,3 @@ void susfs_init(void) {
 
 /* No module exit is needed becuase it should never be a loadable kernel module */
 //void __init susfs_exit(void)
-
-/* KernelSU-Next Linker Fixes */
-void susfs_reorder_mnt_id(void) {}
-void susfs_set_i_state_on_external_dir(void) {}
-
-/* --- Ultimate Linker Fixes (Version Mismatch Stubs) --- */
-void susfs_sus_ino_for_generic_fillattr(unsigned long *ino, struct inode *inode) {}
-bool susfs_try_umount(struct mount *mnt) { return false; }
-void susfs_copy_mount(struct mount *old, struct mount *new) {}
-void susfs_handle_mount(struct mount *newmnt, struct path *path) {}
-int ksu_handle_statmount(struct vfsmount *mnt) { return 0; }
-/* ------------------------------------------------------ */
-
-
