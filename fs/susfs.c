@@ -1486,9 +1486,9 @@ void susfs_set_i_state_on_external_dir(void) {}
 
 /* --- Ultimate Linker Fixes (Version Mismatch Stubs) --- */
 void susfs_sus_ino_for_generic_fillattr(unsigned long *ino, struct inode *inode) {}
-void susfs_try_umount(const char *mnt, int flags) {}
+bool susfs_try_umount(struct mount *mnt) { return false; }
 void susfs_copy_mount(struct mount *old, struct mount *new) {}
-void susfs_handle_mount(struct mount *mnt) {}
+void susfs_handle_mount(struct mount *newmnt, struct path *path) {}
 int ksu_handle_statmount(struct vfsmount *mnt) { return 0; }
 /* ------------------------------------------------------ */
 
