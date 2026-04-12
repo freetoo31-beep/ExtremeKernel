@@ -1677,7 +1677,7 @@ static int proc_pid_readlink(struct dentry *dentry, char __user *buffer, int buf
 	struct inode *inode = d_backing_inode(dentry);
 	struct path path;
 
-	/* ----- بداية زرع خطاف SUSFS PROC READLINK ----- */
+/* ----- بداية خطاف SUSFS PROC READLINK ----- */
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 	if (unlikely(test_bit(AS_FLAGS_OPEN_REDIRECT, &inode->i_state))) {
 		char *tmp_buf = kmalloc(PATH_MAX, GFP_KERNEL);
@@ -1699,16 +1699,23 @@ static int proc_pid_readlink(struct dentry *dentry, char __user *buffer, int buf
 			return res;
 	}
 #endif
-	/* ---------------------------------------------- */
+/* ------------------------------------------ */
 
-	/* الكود الأصلي للدالة يكمل من هنا */
-	res = proxied_getattr(dentry, &path);
-	if (!res) {
-		res = do_proc_readlink(&path, buffer, buflen);
-		path_put(&path);
-	}
+	/* الكود الأصلي والمصحح المتوافق مع لينكس 4.14 */
+	res = -EACCES;
+	if (!proc_fd_access_allowed(inode))
+		goto out;
+
+	res = PROC_I(inode)->op.proc_get_link(dentry, &path);
+	if (res)
+		goto out;
+
+	res = do_proc_readlink(&path, buffer, buflen);
+	path_put(&path);
+out:
 	return res;
 }
+
 
 
 const struct inode_operations proc_pid_link_inode_operations = {
@@ -3945,4 +3952,5 @@ void __init set_proc_pid_nlink(void)
 	nlink_tid = pid_entry_nlink(tid_base_stuff, ARRAY_SIZE(tid_base_stuff));
 	nlink_tgid = pid_entry_nlink(tgid_base_stuff, ARRAY_SIZE(tgid_base_stuff));
 }
+
 
