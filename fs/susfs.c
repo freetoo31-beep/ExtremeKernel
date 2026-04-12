@@ -568,7 +568,17 @@ out_spoof_kstat:
 /* try_umount */
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 static DEFINE_SPINLOCK(susfs_spin_lock_try_umount);
-extern void try_umount(const char *mnt, int flags);
+extern int path_umount(struct path *path, int flags);
+
+static void try_umount(const char *mnt, int flags) {
+	struct path path;
+	int err;
+	
+	err = kern_path(mnt, LOOKUP_FOLLOW, &path);
+	if (!err) {
+		path_umount(&path, flags);
+	}
+}
 static LIST_HEAD(LH_TRY_UMOUNT_PATH);
 void susfs_add_try_umount(void __user **user_info) {
 	struct st_susfs_try_umount info = {0};
@@ -1385,6 +1395,11 @@ static const struct fsnotify_ops fsnotify_ops = {
 	.handle_event = susfs_handle_sdcard_inode_event,
 };
 
+static void susfs_free_mark(struct fsnotify_mark *mark)
+{
+	kfree(mark);
+}
+
 static int add_mark_on_inode(struct inode *inode, u32 mask,
 								struct fsnotify_mark **out)
 {
@@ -1394,16 +1409,18 @@ static int add_mark_on_inode(struct inode *inode, u32 mask,
 	if (!m)
 		return -ENOMEM;
 
-	fsnotify_init_mark(m, g);
+	/* متوافق مع نواة 4.14 */
+	fsnotify_init_mark(m, susfs_free_mark);
 	m->mask = mask;
 
-	if (fsnotify_add_mark(m, inode, NULL, 0)) {
+	if (fsnotify_add_mark(m, g, inode, NULL, 0)) {
 		fsnotify_put_mark(m);
 		return -EINVAL;
 	}
 	*out = m;
 	return 0;
 }
+
 
 static int susfs_sdcard_monitor_fn(void *data)
 {
