@@ -4334,4 +4334,3 @@ struct vfsmount *susfs_get_non_sus_vfsmnt_from_vfsmnt(struct vfsmount *vfsmnt) {
 	return &mnt->mnt;
 }
 #endif // CONFIG_KSU_SUSFS_SUS_MOUNT
-
