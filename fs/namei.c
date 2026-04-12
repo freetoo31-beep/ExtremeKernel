@@ -54,14 +54,27 @@
 #include "mount.h"
 
 #define CREATE_TRACE_POINTS
+
+/* --- ترقيعات الـ Linker لملف namei.c --- */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-extern bool susfs_is_sus_android_data_d_name_found(const char *d_name);
-extern bool susfs_is_sus_sdcard_d_name_found(const char *d_name);
+__weak bool susfs_is_sus_android_data_d_name_found(const char *d_name) { return false; }
+__weak bool susfs_is_sus_sdcard_d_name_found(const char *d_name) { return false; }
+__weak bool susfs_is_base_dentry_android_data_dir(struct dentry* base) { return false; }
+__weak bool susfs_is_base_dentry_sdcard_dir(struct dentry* base) { return false; }
 extern bool susfs_is_inode_sus_path(struct inode *inode);
-extern bool susfs_is_base_dentry_android_data_dir(struct dentry* base);
-extern bool susfs_is_base_dentry_sdcard_dir(struct dentry* base);
 extern const struct qstr susfs_fake_qstr_name;
 #endif
+
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+#include <linux/err.h>
+__weak struct filename* susfs_get_redirected_path(unsigned long ino) { return ERR_PTR(-ENOENT); }
+#endif
+
+/* دوال تتبع مسارات سامسونج الناقصة (Stubs) */
+__weak void trace_inodepath(struct inode *inode, const char *path) {}
+__weak bool trace_inodepath_enabled(void) { return false; }
+/* -------------------------------------- */
+
 
 /* [Feb-1997 T. Schoebel-Theuer]
  * Fundamental changes in the pathname lookup mechanisms (namei)
