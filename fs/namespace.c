@@ -35,6 +35,10 @@
 #include "pnode.h"
 #include "internal.h"
 
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+#include <linux/susfs_def.h>
+#endif
+
 /* Maximum number of mounts in a mount namespace */
 unsigned int sysctl_mount_max __read_mostly = 100000;
 
