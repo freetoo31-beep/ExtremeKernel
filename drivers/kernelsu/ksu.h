@@ -1,9 +1,9 @@
 #ifndef __KSU_H_KSU
 #define __KSU_H_KSU
 
-/* --- التعديل النهائي والضروري لعمل الروت --- */
+/* --- التعديل النهائي باستخدام أحدث إصدار رسمي من المطور --- */
 #undef KSU_VERSION
-#define KSU_VERSION 33310
+#define KSU_VERSION 33129
 
 #undef KSU_VERSION_TAG
 #define KSU_VERSION_TAG "legacy_susfs"
