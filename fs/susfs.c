@@ -1463,3 +1463,5 @@ void susfs_init(void) {
 
 /* No module exit is needed becuase it should never be a loadable kernel module */
 //void __init susfs_exit(void)
+/* تعريف المتغير المفقود لإصلاح خطأ الربط في avc.c */
+bool susfs_is_avc_log_spoofing_enabled = true;
