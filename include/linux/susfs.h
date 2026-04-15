@@ -261,15 +261,4 @@ void susfs_start_sdcard_monitor_fn(void);
 /* susfs_init */
 void susfs_init(void);
 
-/* =====================================================================
- * BACKPORT BRIDGE DECLARATIONS
- * Added for legacy open.c compatibility
- * ===================================================================== */
-struct filename;
-extern bool susfs_is_current_ksu_domain(void);
-#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-extern struct filename *susfs_get_redirected_path_name(const char *name);
 #endif
-
-#endif
-
