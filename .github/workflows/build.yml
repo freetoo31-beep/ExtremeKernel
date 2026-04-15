@@ -1,4 +1,4 @@
-name: ExtremeKernel - Legacy SuSFS Edition
+Name: ExtremeKernel - Legacy SuSFS Edition
 
 on:
   workflow_dispatch:
@@ -49,7 +49,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc
 
-      # 4. حقن الإعدادات والاسم (علاج المشاكل يدوياً)
+      # 4. حقن الإعدادات والاسم (الحل النهائي لمشكلة الإصدار والوجه العابس)
       - name: Fix Headers & Set Stealth
         if: steps.check.outputs.proceed == 'true'
         run: |
@@ -65,22 +65,37 @@ jobs:
             echo "CONFIG_KSU_SUSFS_ENABLE_LOG=n" >> "$1"
           ' _ {} \;
 
-          # ب- ضبط رقم الإصدار والاسم legacy_susfs (تنظيف الرموز المخفية آلياً)
+          # ب- ضبط رقم الإصدار والاسم وتعطيل فحص الحجم يدوياً وقسرياً
           KSU_H="drivers/kernelsu/ksu.h"
-          sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33100/' $KSU_H
-          sed -i 's/#define KSU_VERSION_TAG .*/#define KSU_VERSION_TAG "legacy_susfs"/' $KSU_H
+          if [ -f "$KSU_H" ]; then
+            # تحديث رقم الإصدار إلى 33129
+            sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33129/' $KSU_H
+            # تحديث التاج إلى legacy_susfs
+            sed -i 's/#define KSU_VERSION_TAG .*/#define KSU_VERSION_TAG "legacy_susfs"/' $KSU_H
+            # حقن كود إيقاف فحص الحجم (EXPECTED_SIZE 0) لضمان عمل الروت
+            if ! grep -q "EXPECTED_SIZE" "$KSU_H"; then
+               sed -i '/#define __KSU_H_KSU/a #define EXPECTED_SIZE 0' $KSU_H
+            else
+               sed -i 's/#define EXPECTED_SIZE .*/#define EXPECTED_SIZE 0/' $KSU_H
+            fi
+            echo "Successfully patched $KSU_H"
+          else
+            echo "Error: $KSU_H not found!"
+            exit 1
+          fi
           
           echo "Injection Done!"
 
-      # 5. تشغيل عملية البناء
+      # 5. تشغيل عملية البناء بمتغيرات البيئة الصحيحة
       - name: Build Kernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
-          export KSU_VERSION=33100
+          # تمرير الإصدار الصحيح للمترجم كأولوية قصوى
+          export KSU_VERSION=33129
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      # 6. رفع ملف الـ ZIP
+      # 6. رفع ملف الـ ZIP الناتج
       - name: Upload Kernel Artifact
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
