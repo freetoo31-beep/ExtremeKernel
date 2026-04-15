@@ -1464,3 +1464,56 @@ void susfs_init(void) {
 /* No module exit is needed becuase it should never be a loadable kernel module */
 //void __init susfs_exit(void)
 
+/* =====================================================================
+ * 4.14 BACKPORT BRIDGE (SHIM FUNCTIONS)
+ * Written by Mohanad's AI Collaborator to bridge 4.14 legacy calls
+ * ===================================================================== */
+
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+/* * هذه الدالة هي الجسر لملفات readdir.c و namei.c القديمة.
+ * هي تستقبل اسم الملف كنص وتتحقق منه باستخدام محرك v2.1.0 الجديد.
+ */
+bool susfs_is_sus_path(const char *name) {
+	struct path path;
+	struct inode *inode;
+	bool ret = false;
+
+	if (!name || !*name)
+		return false;
+
+	/* التحقق من المسار وتحويله إلى inode ليتمكن المحرك الجديد من فحصه */
+	if (!kern_path(name, LOOKUP_FOLLOW, &path)) {
+		inode = d_backing_inode(path.dentry);
+		if (inode) {
+			ret = susfs_is_inode_sus_path(inode);
+		}
+		path_put(&path);
+	}
+	return ret;
+}
+#endif
+
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+/*
+ * جسر لدالة تزييف بيانات الملفات (Kstat)
+ * الملفات القديمة تطلبها برقم الـ inode فقط، وهذا الجسر يمررها للمحرك الجديد.
+ */
+void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *stat) {
+	struct st_susfs_sus_kstat_hlist *entry;
+	
+	/* البحث في جدول الهاش الخاص بـ SusFS v2.1.0 باستخدام رقم الـ inode */
+	hash_for_each_possible_rcu(SUS_KSTAT_HLIST, entry, node, ino) {
+		if (entry->target_ino == ino) {
+			susfs_generic_fillattr_spoofer(NULL, stat); // NULL لأننا نعتمد على الـ ino المخزن
+			break;
+		}
+	}
+}
+#endif
+
+/* دالة إضافية للتوافق مع استدعاءات الروم الأصلية لسامسونج */
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+int susfs_open_redirect_spoof_vfs_readlink_legacy(struct inode *inode, char __user *buffer, int buflen) {
+	return susfs_open_redirect_spoof_vfs_readlink(inode, buffer, buflen);
+}
+#endif
