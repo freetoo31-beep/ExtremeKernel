@@ -1515,4 +1515,34 @@ void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *stat) {
 int susfs_open_redirect_spoof_vfs_readlink_legacy(struct inode *inode, char __user *buffer, int buflen) {
 	return susfs_open_redirect_spoof_vfs_readlink(inode, buffer, buflen);
 }
+
+/* Bridge for legacy open.c redirected path lookup (v2.1.0 Inode-based) */
+struct filename *susfs_get_redirected_path_name(const char *name) {
+	struct path path;
+	struct inode *inode;
+	struct st_susfs_open_redirect_hlist *entry;
+	struct filename *ret = NULL;
+
+	if (!name || !*name) 
+		return NULL;
+
+	/* 1. تحويل الاسم إلى inode ليتوافق مع محرك v2.1.0 الجديد */
+	if (!kern_path(name, LOOKUP_FOLLOW, &path)) {
+		inode = d_backing_inode(path.dentry);
+		if (inode) {
+			rcu_read_lock();
+			/* 2. البحث برقم الـ inode في الهاش بدلاً من الاسم النصي */
+			hash_for_each_possible_rcu(OPEN_REDIRECT_HLIST, entry, node, inode->i_ino) {
+				if (entry->target_ino == inode->i_ino) {
+					/* 3. إرجاع المسار الموجه بصيغة filename */
+					ret = getname_kernel(entry->redirected_pathname);
+					break;
+				}
+			}
+			rcu_read_unlock();
+		}
+		path_put(&path);
+	}
+	return ret;
+}
 #endif
