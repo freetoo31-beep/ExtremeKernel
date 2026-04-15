@@ -64,6 +64,10 @@ struct mnt_namespace;
 #define MNT_MARKED		0x4000000
 #define MNT_UMOUNT		0x8000000
 
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+#define VFSMOUNT_MNT_FLAGS_KSU_UNSHARED_MNT 0x20000000
+#endif
+
 struct vfsmount {
 	struct dentry *mnt_root;	/* root of the mounted tree */
 	struct super_block *mnt_sb;	/* pointer to superblock */
@@ -72,6 +76,9 @@ struct vfsmount {
 #endif
 	int mnt_flags;
 	void *data;
+#ifdef CONFIG_KSU_SUSFS
+	u64 susfs_mnt_id_backup;
+#endif
 } __randomize_layout;
 
 struct file; /* forward dec */
@@ -109,3 +116,4 @@ extern unsigned int sysctl_mount_max;
 extern bool path_is_mountpoint(const struct path *path);
 
 #endif /* _LINUX_MOUNT_H */
+
