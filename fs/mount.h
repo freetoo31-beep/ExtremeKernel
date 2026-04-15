@@ -5,15 +5,6 @@
 #include <linux/ns_common.h>
 #include <linux/fs_pin.h>
 
-/* * SuSFS & KernelSU-Next Integration 
- * توحيد التعريفات لتجنب تعارض القيمة 0x20000000 القديمة مع v2.1.0 
- */
-#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-#ifndef VFSMOUNT_MNT_FLAGS_KSU_UNSHARED_MNT
-#define VFSMOUNT_MNT_FLAGS_KSU_UNSHARED_MNT 0x80000000
-#endif
-#endif
-
 struct mnt_namespace {
 	atomic_t		count;
 	struct ns_common	ns;
