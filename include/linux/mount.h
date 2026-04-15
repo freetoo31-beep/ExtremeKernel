@@ -64,13 +64,6 @@ struct mnt_namespace;
 #define MNT_MARKED		0x4000000
 #define MNT_UMOUNT		0x8000000
 
-/* تم التعديل لتوافق SuSFS v2.1.0 وتجنب التعارض */
-#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-#ifndef VFSMOUNT_MNT_FLAGS_KSU_UNSHARED_MNT
-#define VFSMOUNT_MNT_FLAGS_KSU_UNSHARED_MNT 0x80000000
-#endif
-#endif
-
 struct vfsmount {
 	struct dentry *mnt_root;	/* root of the mounted tree */
 	struct super_block *mnt_sb;	/* pointer to superblock */
