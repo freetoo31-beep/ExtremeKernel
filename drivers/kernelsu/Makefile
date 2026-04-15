@@ -1,11 +1,6 @@
 KDIR := $(KDIR)
 MDIR := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
-# --- إضافة التعديلات القوية هنا لفرض الإصدار وحل مشكلة الواجهة العابسة ---
-ccflags-y += -DKSU_VERSION=33129
-ccflags-y += -DEXPECTED_SIZE=0
-# -----------------------------------------------------------------------
-
 $(info -- KDIR: $(KDIR))
 $(info -- MDIR: $(MDIR))
 
@@ -14,20 +9,15 @@ $(info -- MDIR: $(MDIR))
 all: check_symbol
 	make -C $(KDIR) M=$(MDIR) modules
 	./check_symbol kernelsu.ko $(KDIR)/vmlinux
-
 compdb:
 	python3 $(MDIR)/.vscode/generate_compdb.py -O $(KDIR) $(MDIR)
-
 clean:
 	make -C $(KDIR) M=$(MDIR) clean
-	rm -f check_symbol
-
+	rm check_symbol
 check_symbol: tools/check_symbol.c
 	$(CC) tools/check_symbol.c -o check_symbol
-
 format:
 	find . \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 clang-format -i
-
 check-format:
 	find . \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 clang-format --dry-run --Werror
 
