@@ -39,8 +39,9 @@
 #endif
 
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-#include <linux/susfs.h>
+#include <linux/susfs_def.h>
 #endif
+
 
 
 int do_truncate2(struct vfsmount *mnt, struct dentry *dentry, loff_t length,
@@ -1092,11 +1093,20 @@ struct file *filp_clone_open(struct file *oldfile)
 }
 EXPORT_SYMBOL(filp_clone_open);
 
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+extern struct filename *susfs_open_redirect_spoof_do_sys_openat(struct inode *inode);
+#endif
+
 long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 {
 	struct open_flags op;
 	int fd = build_open_flags(flags, mode, &op);
 	struct filename *tmp;
+
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+	struct filename *fake_filename = NULL;
+	bool is_inode_open_redirect = false;
+#endif
 
 	if (fd)
 		return fd;
@@ -1104,31 +1114,39 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 	tmp = getname(filename);
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
-#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-	/* فحص إذا كان التطبيق الحالي ليس لديه صلاحيات روت لتضليله */
-	if (!susfs_is_current_ksu_domain()) {
-		struct filename *susfs_tmp = tmp;
-		struct filename *redirected_tmp;
-
-		/* سؤال محرك التخفي: هل هذا المسار مسجل لإعادة التوجيه؟ */
-		redirected_tmp = susfs_get_redirected_path_name(tmp->name);
-		if (!IS_ERR(redirected_tmp)) {
-			/* إذا وجدنا توجيه، نستبدل الملف الأصلي بالوهمي فوراً */
-			tmp = redirected_tmp;
-			putname(susfs_tmp);
-		}
-	}
-#endif
 
 	fd = get_unused_fd_flags(flags);
+
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+retry:
+#endif
 	if (fd >= 0) {
 		struct file *f = do_filp_open(dfd, tmp, &op);
+
 #ifdef CONFIG_SECURITY_DEFEX
 		if (!IS_ERR(f) && task_defex_enforce(current, f, -__NR_openat)) {
 			fput(f);
 			f = ERR_PTR(-EPERM);
 		}
 #endif
+
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+		/* كمين المطور: فحص الملف بعد فتحه بواسطة الـ Inode */
+		if (!is_inode_open_redirect && f && !IS_ERR(f)) {
+			struct inode *inode = file_inode(f);
+			if (SUSFS_IS_INODE_OPEN_REDIRECT_WITHOUT_UID_CHECK(inode)) {
+				fake_filename = susfs_open_redirect_spoof_do_sys_openat(inode);
+				if (fake_filename && !IS_ERR(fake_filename)) {
+					is_inode_open_redirect = true;
+					filp_close(f, NULL); // إغلاق ملف الروت فوراً
+					putname(tmp);        // حذف المسار القديم
+					tmp = fake_filename; // استبداله بالمسار الوهمي
+					goto retry;          // العودة لفتح الملف الوهمي بدلاً منه
+				}
+			}
+		}
+#endif
+
 		if (IS_ERR(f)) {
 			put_unused_fd(fd);
 			fd = PTR_ERR(f);
@@ -1190,6 +1208,7 @@ SYSCALL_DEFINE2(creat, const char __user *, pathname, umode_t, mode)
 }
 
 #endif
+
 
 /*
  * "id" is the POSIX thread ID. We use the
@@ -1296,4 +1315,5 @@ int stream_open(struct inode *inode, struct file *filp)
 }
 
 EXPORT_SYMBOL(stream_open);
+
 
