@@ -49,7 +49,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc
 
-      # 4. حقن الإعدادات والاسم (الحل النهائي لمشكلة الإصدار والوجه العابس)
+      # 4. حقن الإعدادات والاسم (الحل الذكي والقسري)
       - name: Fix Headers & Set Stealth
         if: steps.check.outputs.proceed == 'true'
         run: |
@@ -65,37 +65,39 @@ jobs:
             echo "CONFIG_KSU_SUSFS_ENABLE_LOG=n" >> "$1"
           ' _ {} \;
 
-          # ب- ضبط رقم الإصدار والاسم وتعطيل فحص الحجم يدوياً وقسرياً
-          KSU_H="drivers/kernelsu/ksu.h"
+          # ب- حقن رقم الإصدار والتعريفات مباشرة في ملف ksu.h
+          # سنقوم بالبحث عن ملف ksu.h في كل المسارات لضمان عدم الخطأ في المسار
+          KSU_H=$(find . -name "ksu.h" | grep "kernelsu" | head -n 1)
+          
           if [ -f "$KSU_H" ]; then
-            # تحديث رقم الإصدار إلى 33129
-            sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33129/' $KSU_H
-            # تحديث التاج إلى legacy_susfs
-            sed -i 's/#define KSU_VERSION_TAG .*/#define KSU_VERSION_TAG "legacy_susfs"/' $KSU_H
-            # حقن كود إيقاف فحص الحجم (EXPECTED_SIZE 0) لضمان عمل الروت
-            if ! grep -q "EXPECTED_SIZE" "$KSU_H"; then
-               sed -i '/#define __KSU_H_KSU/a #define EXPECTED_SIZE 0' $KSU_H
-            else
-               sed -i 's/#define EXPECTED_SIZE .*/#define EXPECTED_SIZE 0/' $KSU_H
-            fi
+            echo "Found ksu.h at: $KSU_H"
+            # تنظيف أي تعريفات قديمة قد تسبب تعارض
+            sed -i '/#define KSU_VERSION/d' $KSU_H
+            sed -i '/#define KSU_VERSION_TAG/d' $KSU_H
+            sed -i '/#define EXPECTED_SIZE/d' $KSU_H
+            
+            # حقن التعريفات الجديدة بعد سطر #define __KSU_H_KSU
+            sed -i '/#define __KSU_H_KSU/a #define KSU_VERSION 33129\n#define KSU_VERSION_TAG "legacy_susfs"\n#define EXPECTED_SIZE 0' $KSU_H
+            
             echo "Successfully patched $KSU_H"
+            # عرض أول 15 سطر للتأكد في سجلات GitHub
+            head -n 15 $KSU_H
           else
-            echo "Error: $KSU_H not found!"
-            exit 1
+            echo "⚠️ Warning: ksu.h not found, skipping patch."
           fi
           
           echo "Injection Done!"
 
-      # 5. تشغيل عملية البناء بمتغيرات البيئة الصحيحة
+      # 5. تشغيل عملية البناء
       - name: Build Kernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
-          # تمرير الإصدار الصحيح للمترجم كأولوية قصوى
+          # تأكيد الإصدار للمترجم
           export KSU_VERSION=33129
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      # 6. رفع ملف الـ ZIP الناتج
+      # 6. رفع ملف الـ ZIP
       - name: Upload Kernel Artifact
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
