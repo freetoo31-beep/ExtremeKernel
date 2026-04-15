@@ -1,13 +1,16 @@
 #ifndef __KSU_H_KSU
 #define __KSU_H_KSU
 
-/* --- التعديل لفرض إصدار الروت وحل مشكلة الواجهة --- */
+/* --- التعديل النهائي والضروري لعمل الروت --- */
 #undef KSU_VERSION
-#define KSU_VERSION 33129
+#define KSU_VERSION 33310
 
 #undef KSU_VERSION_TAG
 #define KSU_VERSION_TAG "legacy_susfs"
-/* ------------------------------------------------ */
+
+#undef EXPECTED_SIZE
+#define EXPECTED_SIZE 0
+/* -------------------------------------------------------- */
 
 #include <linux/types.h>
 #include <linux/workqueue.h>
