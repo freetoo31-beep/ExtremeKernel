@@ -64,8 +64,11 @@ struct mnt_namespace;
 #define MNT_MARKED		0x4000000
 #define MNT_UMOUNT		0x8000000
 
+/* تم التعديل لتوافق SuSFS v2.1.0 وتجنب التعارض */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-#define VFSMOUNT_MNT_FLAGS_KSU_UNSHARED_MNT 0x20000000
+#ifndef VFSMOUNT_MNT_FLAGS_KSU_UNSHARED_MNT
+#define VFSMOUNT_MNT_FLAGS_KSU_UNSHARED_MNT 0x80000000
+#endif
 #endif
 
 struct vfsmount {
@@ -116,4 +119,3 @@ extern unsigned int sysctl_mount_max;
 extern bool path_is_mountpoint(const struct path *path);
 
 #endif /* _LINUX_MOUNT_H */
-
