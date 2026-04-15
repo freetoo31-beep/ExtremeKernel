@@ -4345,8 +4345,10 @@ struct vfsmount *susfs_get_non_sus_vfsmnt_from_vfsmnt(struct vfsmount *vfsmnt) {
 		unlock_mount_hash();
 		return vfsmnt;
 	}
-	dget(mnt->mnt.mnt_root);
+		dget(mnt->mnt.mnt_root);
 	unlock_mount_hash();
 	return &mnt->mnt;
 #endif
 }
+#endif
+
