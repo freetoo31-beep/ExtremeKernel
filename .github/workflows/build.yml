@@ -1,4 +1,4 @@
-Name: ExtremeKernel - Legacy SuSFS Edition
+name: ExtremeKernel - Legacy SuSFS Edition
 
 on:
   workflow_dispatch:
@@ -66,24 +66,22 @@ jobs:
           ' _ {} \;
 
           # ب- حقن رقم الإصدار والتعريفات مباشرة في ملف ksu.h
-          # سنقوم بالبحث عن ملف ksu.h في كل المسارات لضمان عدم الخطأ في المسار
           KSU_H=$(find . -name "ksu.h" | grep "kernelsu" | head -n 1)
           
           if [ -f "$KSU_H" ]; then
             echo "Found ksu.h at: $KSU_H"
-            # تنظيف أي تعريفات قديمة قد تسبب تعارض
-            sed -i '/#define KSU_VERSION/d' $KSU_H
-            sed -i '/#define KSU_VERSION_TAG/d' $KSU_H
-            sed -i '/#define EXPECTED_SIZE/d' $KSU_H
+            # تنظيف أي تعريفات قديمة لضمان عدم حدوث تعارض
+            sed -i '/#define KSU_VERSION/d' "$KSU_H"
+            sed -i '/#define KSU_VERSION_TAG/d' "$KSU_H"
+            sed -i '/#define EXPECTED_SIZE/d' "$KSU_H"
             
-            # حقن التعريفات الجديدة بعد سطر #define __KSU_H_KSU
-            sed -i '/#define __KSU_H_KSU/a #define KSU_VERSION 33129\n#define KSU_VERSION_TAG "legacy_susfs"\n#define EXPECTED_SIZE 0' $KSU_H
+            # حقن التعريفات الجديدة بعد سطر تعريف الملف الرئيسي
+            sed -i '/#ifndef __KSU_H_KSU/a #define KSU_VERSION 33129\n#define KSU_VERSION_TAG "legacy_susfs"\n#define EXPECTED_SIZE 0' "$KSU_H"
             
             echo "Successfully patched $KSU_H"
-            # عرض أول 15 سطر للتأكد في سجلات GitHub
-            head -n 15 $KSU_H
+            head -n 15 "$KSU_H"
           else
-            echo "⚠️ Warning: ksu.h not found, skipping patch."
+            echo "⚠️ Warning: ksu.h not found!"
           fi
           
           echo "Injection Done!"
@@ -93,11 +91,11 @@ jobs:
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
-          # تأكيد الإصدار للمترجم
+          # تأكيد الإصدار للمترجم كأولوية قصوى
           export KSU_VERSION=33129
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      # 6. رفع ملف الـ ZIP
+      # 6. رفع ملف الـ ZIP الناتج
       - name: Upload Kernel Artifact
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
