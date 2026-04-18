@@ -12,6 +12,8 @@
 #include <linux/nsproxy.h>
 #include "internal.h"
 #include "pnode.h"
+#include <linux/susfs_def.h> // --- إضافة هذا السطر ضرورية جداً هنا ---
+
 
 /* return the next shared peer mount of @p */
 static inline struct mount *next_peer(struct mount *p)
