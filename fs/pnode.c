@@ -325,11 +325,14 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 	struct mount *m, *n;
 	int ret = 0;
 
-	/*
-	 * we don't want to bother passing tons of arguments to
-	 * propagate_one(); everything is serialized by namespace_sem,
-	 * so globals will do just fine.
-	 */
+/* --- بداية إضافة كود SuSFS --- */
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+	if (susfs_is_current_proc_umounted()) {
+		return 0;
+	}
+#endif
+/* --- نهاية الإضافة --- */
+
 	user_ns = current->nsproxy->mnt_ns->user_ns;
 	last_dest = dest_mnt;
 	first_source = source_mnt;
@@ -704,3 +707,4 @@ void propagate_remount(struct mount *mnt)
 #endif
 	}
 }
+
