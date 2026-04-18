@@ -25,7 +25,7 @@ jobs:
         model: [d1, d1xks, d2s, d2x, d2xks]
 
     steps:
-      # 1. التحقق من الموديل
+      # 1. التحقق من الموديل المطلوب بناؤه
       - name: Check if build is needed
         id: check
         run: |
@@ -35,54 +35,49 @@ jobs:
             echo "proceed=false" >> $GITHUB_OUTPUT
           fi
 
-      # 2. تحميل كود الكيرنل
+      # 2. تحميل كود الكيرنل من المستودع
       - name: Checkout Kernel Source
         if: steps.check.outputs.proceed == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      # 3. تثبيت أدوات البناء
+      # 3. تثبيت أدوات بناء أندرويد ولينكس الضرورية
       - name: Install Dependencies
         if: steps.check.outputs.proceed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc
 
-      # 4. حقن الإعدادات والاسم (علاج المشاكل يدوياً)
-      - name: Fix Headers & Set Stealth
+      # 4. ضبط تعريفات النسخة (بدون لمس الـ defconfig الجاهز)
+      - name: Set KernelSU Version & Stealth Tag
         if: steps.check.outputs.proceed == 'true'
         run: |
           echo "Processing ${{ matrix.model }}..."
           
-          # أ- تفعيل خيارات SuSFS في الـ defconfig
-          find arch/arm64/configs/ -name "*${{ matrix.model }}*_defconfig" -exec sh -c '
-            echo "CONFIG_KSU_SUSFS=y" >> "$1"
-            echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "$1"
-            echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> "$1"
-            echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "$1"
-            echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> "$1"
-            echo "CONFIG_KSU_SUSFS_ENABLE_LOG=n" >> "$1"
-          ' _ {} \;
-
-          # ب- ضبط رقم الإصدار والاسم legacy_susfs (تنظيف الرموز المخفية آلياً)
+          # ضبط رقم الإصدار والوسم "legacy_susfs" في ملف ksu.h
           KSU_H="drivers/kernelsu/ksu.h"
-          # تم التعديل إلى 33129
-          sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33129/' $KSU_H
-          sed -i 's/#define KSU_VERSION_TAG .*/#define KSU_VERSION_TAG "legacy_susfs"/' $KSU_H
+          if [ -f "$KSU_H" ]; then
+            sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33129/' $KSU_H
+            sed -i 's/#define KSU_VERSION_TAG .*/#define KSU_VERSION_TAG "legacy_susfs"/' $KSU_H
+            echo "ksu.h updated successfully!"
+          else
+            echo "Warning: ksu.h not found at $KSU_H"
+          fi
           
-          echo "Injection Done!"
+          echo "Stealth configuration applied!"
 
-      # 5. تشغيل عملية البناء
+      # 5. تشغيل عملية بناء النواة (الطبخ)
       - name: Build Kernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
-          # تم التعديل إلى 33129
+          # تصدير نسخة KSU للمترجم
           export KSU_VERSION=33129
+          # البدء في السكربت الرئيسي
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      # 6. رفع ملف الـ ZIP
+      # 6. رفع الملفات الناتجة (Kernel ZIP)
       - name: Upload Kernel Artifact
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
