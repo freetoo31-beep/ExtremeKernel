@@ -12,21 +12,17 @@
 #include <linux/fs.h>
 
 #include <linux/proc_fs.h>
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+#include <linux/susfs_def.h>
+#endif
 
 #include "../mount.h"
 #include "internal.h"
 #include "fd.h"
 
-/* --- إضافة SusFS --- */
-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-extern bool susfs_is_inode_sus_path(struct inode *inode);
-#endif
-
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-#include <linux/susfs_def.h>
-extern int susfs_get_non_sus_mnt_id_from_mnt(struct mount *orig_mnt);
-#endif
-/* ------------------- */
+struct mount *susfs_get_non_sus_mnt_from_mnt(struct mount *orig_mnt);
+#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 
 static int seq_show(struct seq_file *m, void *v)
 {
@@ -91,7 +87,7 @@ static int seq_show(struct seq_file *m, void *v)
 		}
 		seq_printf(m, "pos:\t%lli\nflags:\t0%o\nmnt_id:\t%i\nino:\t%lu\n",
 				(long long)file->f_pos, f_flags,
-				susfs_get_non_sus_mnt_id_from_mnt(mnt),
+				susfs_get_non_sus_mnt_from_mnt(mnt)->mnt_id,
 				path.dentry->d_inode->i_ino);
 		path_put(&path);
 		kfree(pathname);
@@ -211,9 +207,27 @@ static int proc_fd_link(struct dentry *dentry, struct path *path)
 		spin_lock(&files->file_lock);
 		fd_file = fcheck_files(files, fd);
 		if (fd_file) {
+/* --- بداية تعديل SuSFS الاحترافي --- */
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+			struct mount *mnt = real_mount(fd_file->f_path.mnt);
+			if (likely(susfs_is_current_proc_umounted()) &&
+						mnt->mnt_id >= DEFAULT_KSU_MNT_ID)
+			{
+				path->mnt = &susfs_get_non_sus_mnt_from_mnt(mnt)->mnt;
+				path->dentry = fd_file->f_path.dentry;
+				path_get(path);
+				ret = 0;
+			} else {
+				*path = fd_file->f_path;
+				path_get(&fd_file->f_path);
+				ret = 0;
+			}
+#else
 			*path = fd_file->f_path;
 			path_get(&fd_file->f_path);
 			ret = 0;
+#endif
+/* --- نهاية التعديل --- */
 		}
 		spin_unlock(&files->file_lock);
 		put_files_struct(files);
@@ -294,19 +308,9 @@ static int proc_readfd_common(struct file *file, struct dir_context *ctx,
 	     fd++, ctx->pos++) {
 		char name[PROC_NUMBUF];
 		int len;
-		struct file *f; /* إضافة SusFS لتعريف الملف هنا */
 
-		f = fcheck_files(files, fd);
-		if (!f)
+		if (!fcheck_files(files, fd))
 			continue;
-
-/* --- إضافة SusFS لتخطي مسارات الروت --- */
-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-		if (unlikely(f->f_inode && susfs_is_inode_sus_path(f->f_inode)))
-			continue;
-#endif
-/* -------------------------------------- */
-
 		rcu_read_unlock();
 
 		len = snprintf(name, sizeof(name), "%u", fd);
