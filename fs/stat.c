@@ -83,14 +83,21 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_backing_inode(path->dentry);
+	int retval;
 
 	memset(stat, 0, sizeof(*stat));
 	stat->result_mask |= STATX_BASIC_STATS;
 	request_mask &= STATX_ALL;
 	query_flags &= KSTAT_QUERY_FLAGS;
-	if (inode->i_op->getattr)
-		return inode->i_op->getattr(path, stat, request_mask,
+	if (inode->i_op->getattr) {
+		retval = inode->i_op->getattr(path, stat, request_mask,
 					    query_flags);
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+		if (!retval)
+			susfs_generic_fillattr_spoofer(inode, stat);
+#endif
+		return retval;
+	}
 
 	generic_fillattr(inode, stat);
 	return 0;
@@ -160,6 +167,7 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
 	return error;
 }
 EXPORT_SYMBOL(vfs_statx_fd);
+
 
 /**
  * vfs_statx - Get basic and extra attributes by filename
