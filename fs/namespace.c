@@ -4327,6 +4327,20 @@ struct vfsmount *susfs_get_non_sus_vfsmnt_from_vfsmnt(struct vfsmount *vfsmnt) {
 
 	lock_mount_hash();
 	for (; mnt && mnt->mnt_parent && mnt != mnt->mnt_parent && mnt->mnt_id >= DEFAULT_KSU_MNT_ID; mnt = mnt->mnt_parent) { }
+
+	/* --- بداية الكود الذي كان ناقصاً لمنع تسريب الذاكرة --- */
+#ifdef CONFIG_KDP_NS
+	if (mnt->mnt == vfsmnt) {
+		unlock_mount_hash();
+		return vfsmnt;
+	}
+#else
+	if (&mnt->mnt == vfsmnt) {
+		unlock_mount_hash();
+		return vfsmnt;
+	}
+#endif
+	/* --- نهاية الكود المضاف --- */
 	
 #ifdef CONFIG_KDP_NS
 	mntget(mnt->mnt);
