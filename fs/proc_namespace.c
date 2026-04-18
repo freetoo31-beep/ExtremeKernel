@@ -18,6 +18,12 @@
 #include "pnode.h"
 #include "internal.h"
 
+/* --- بداية إضافة SuSFS لإخفاء المسارات عن التطبيقات --- */
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+#include <linux/susfs_def.h>
+#endif
+/* --- نهاية الإضافة --- */
+
 static unsigned mounts_poll(struct file *file, poll_table *wait)
 {
 	struct seq_file *m = file->private_data;
@@ -102,6 +108,14 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 	struct super_block *sb = mnt_path.dentry->d_sb;
 	int err;
 
+/* --- بداية التخفي في ملف mounts --- */
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+	if (likely(susfs_is_current_proc_umounted()) && r->mnt_id >= DEFAULT_KSU_MNT_ID) {
+		return 0; /* تخطي طباعة هذا المسار نهائياً */
+	}
+#endif
+/* --- نهاية التخفي --- */
+
 	if (sb->s_op->show_devname) {
 		err = sb->s_op->show_devname(m, mnt_path.dentry);
 		if (err)
@@ -137,6 +151,14 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 	struct super_block *sb = mnt->mnt_sb;
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	int err;
+
+/* --- بداية التخفي في ملف mountinfo (الذي يقرأه Native Detector) --- */
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+	if (likely(susfs_is_current_proc_umounted()) && r->mnt_id >= DEFAULT_KSU_MNT_ID) {
+		return 0; /* إخفاء المسار تماماً من التطبيق */
+	}
+#endif
+/* --- نهاية التخفي --- */
 
 	seq_printf(m, "%i %i %u:%u ", r->mnt_id, r->mnt_parent->mnt_id,
 		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
@@ -201,6 +223,14 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	struct super_block *sb = mnt_path.dentry->d_sb;
 	int err;
+
+/* --- بداية التخفي في ملف mountstats --- */
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+	if (likely(susfs_is_current_proc_umounted()) && r->mnt_id >= DEFAULT_KSU_MNT_ID) {
+		return 0; /* إخفاء المسار */
+	}
+#endif
+/* --- نهاية التخفي --- */
 
 	/* device */
 	if (sb->s_op->show_devname) {
@@ -341,3 +371,4 @@ const struct file_operations proc_mountstats_operations = {
 	.llseek		= seq_lseek,
 	.release	= mounts_release,
 };
+
