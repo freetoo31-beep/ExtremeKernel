@@ -20,6 +20,7 @@
 #include <linux/workqueue.h>
 #include <linux/fsnotify_backend.h>
 #include <linux/susfs.h>
+#include <linux/susfs_def.h> /* تمت إضافة هذا السطر لتعريف DEFAULT_KSU_MNT_ID */
 #include "fuse/fuse_i.h"
 #include "mount.h"
 
@@ -251,6 +252,43 @@ out_copy_to_user:
 	}
 	SUSFS_LOGI("CMD_SUSFS_hide_sus_mnts_for_non_su_procs -> ret: %d\n", info.err);
 }
+
+/* --- بداية الدوال المفقودة التي تحل مشكلة الاكتشاف في OneUI 7 --- */
+
+struct mount *susfs_get_non_sus_mnt_from_mnt(struct mount *orig_mnt) {
+	struct mount *mnt = orig_mnt;
+	if (likely(susfs_is_current_proc_umounted())) {
+		while (mnt->mnt_id >= DEFAULT_KSU_MNT_ID && mnt->mnt_parent && mnt != mnt->mnt_parent) {
+			mnt = mnt->mnt_parent;
+		}
+	}
+	return mnt;
+}
+
+struct vfsmount *susfs_get_non_sus_vfsmnt_from_vfsmnt(struct vfsmount *vfsmnt) {
+	struct mount *mnt = real_mount(vfsmnt);
+	if (likely(susfs_is_current_proc_umounted())) {
+		while (mnt->mnt_id >= DEFAULT_KSU_MNT_ID && mnt->mnt_parent && mnt != mnt->mnt_parent) {
+			mnt = mnt->mnt_parent;
+		}
+	}
+	return &mnt->mnt;
+}
+
+#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+extern void susfs_try_umount(uid_t uid);
+#endif
+
+void susfs_umount_for_zygote_iso_service(void) {
+	if (susfs_hide_sus_mnts_for_non_su_procs) {
+#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+		susfs_try_umount(current_uid().val);
+#endif
+	}
+}
+
+/* --- نهاية الدوال المفقودة --- */
+
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 
 /* sus_kstat */
@@ -565,6 +603,7 @@ out_spoof_kstat:
 	rcu_read_unlock();
 }
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+
 /* try_umount */
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 static DEFINE_SPINLOCK(susfs_spin_lock_try_umount);
@@ -1465,3 +1504,4 @@ void susfs_init(void) {
 //void __init susfs_exit(void)
 /* تعريف المتغير المفقود لإصلاح خطأ الربط في avc.c */
 bool susfs_is_avc_log_spoofing_enabled = true;
+
