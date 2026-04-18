@@ -71,6 +71,9 @@
 #include <linux/uaccess.h>
 #include <linux/pid_namespace.h>
 #include <linux/security.h>
+/* --- إضافة تعريفات SuSFS لمنع خطأ Undefined Symbol --- */
+#include <linux/susfs_def.h> 
+/* -------------------------------------------------- */
 #include <linux/spinlock.h>
 #include <linux/ratelimit.h>
 
@@ -83,6 +86,7 @@
 #ifdef CONFIG_SAMSUNG_FREECESS
 #include <linux/freecess.h>
 #endif
+
 
 static HLIST_HEAD(binder_deferred_list);
 static DEFINE_MUTEX(binder_deferred_lock);
