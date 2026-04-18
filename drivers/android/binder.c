@@ -3285,6 +3285,16 @@ static void binder_transaction(struct binder_proc *proc,
 	int t_debug_id = atomic_inc_return(&binder_last_id);
 	char *secctx = NULL;
 	u32 secctx_sz = 0;
+/* --- بداية تعديل SuSFS للتوقيت اللحظي --- */
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+	if (unlikely(susfs_is_current_proc_umounted())) {
+		/* هنا نقوم بالتأكد من فصل المسارات (Unmount) فوراً 
+		   قبل أن يتمكن التطبيق من إرسال أول طلب فحص 
+		*/
+		susfs_umount_for_zygote_iso_service(); 
+	}
+#endif
+/* --- نهاية التعديل --- */
 
 	e = binder_transaction_log_add(&binder_transaction_log);
 	e->debug_id = t_debug_id;
