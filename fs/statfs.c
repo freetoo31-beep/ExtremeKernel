@@ -12,7 +12,7 @@
 #include "internal.h"
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 #include <linux/susfs_def.h>
-#include "mount.h"
+/* تم حذف #include "mount.h" لمنع الـ Bootloop في الريكفري */
 #endif
 
 static int flags_by_mnt(int mnt_flags)
@@ -75,15 +75,28 @@ int vfs_statfs(const struct path *path, struct kstatfs *buf)
 {
 	int error;
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	struct mount *mnt;
+	struct vfsmount *vfsmnt = path->mnt;
+	struct dentry *dentry = path->dentry;
+	bool put_needed = false;
 
-	mnt = real_mount(path->mnt);
 	if (likely(susfs_is_current_proc_umounted())) {
-		for (; mnt->mnt_id >= DEFAULT_KSU_MNT_ID; mnt = mnt->mnt_parent) {}
+		extern struct vfsmount *susfs_get_non_sus_vfsmnt_from_vfsmnt(struct vfsmount *vfsmnt);
+		struct vfsmount *non_sus_vfsmnt = susfs_get_non_sus_vfsmnt_from_vfsmnt(vfsmnt);
+		if (non_sus_vfsmnt != vfsmnt) {
+			vfsmnt = non_sus_vfsmnt;
+			dentry = vfsmnt->mnt_root;
+			put_needed = true;
+		}
 	}
-	error = statfs_by_dentry(mnt->mnt.mnt_root, buf);
+
+	error = statfs_by_dentry(dentry, buf);
 	if (!error)
-		buf->f_flags = calculate_f_flags(&mnt->mnt);
+		buf->f_flags = calculate_f_flags(vfsmnt);
+
+	if (put_needed) {
+		dput(dentry);
+		mntput(vfsmnt);
+	}
 	return error;
 #else
 	error = statfs_by_dentry(path->dentry, buf);
