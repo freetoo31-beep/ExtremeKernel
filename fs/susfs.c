@@ -265,16 +265,6 @@ struct mount *susfs_get_non_sus_mnt_from_mnt(struct mount *orig_mnt) {
 	return mnt;
 }
 
-struct vfsmount *susfs_get_non_sus_vfsmnt_from_vfsmnt(struct vfsmount *vfsmnt) {
-	struct mount *mnt = real_mount(vfsmnt);
-	if (likely(susfs_is_current_proc_umounted())) {
-		while (mnt->mnt_id >= DEFAULT_KSU_MNT_ID && mnt->mnt_parent && mnt != mnt->mnt_parent) {
-			mnt = mnt->mnt_parent;
-		}
-	}
-	return &mnt->mnt;
-}
-
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 extern void susfs_try_umount(uid_t uid);
 #endif
@@ -1504,4 +1494,5 @@ void susfs_init(void) {
 //void __init susfs_exit(void)
 /* تعريف المتغير المفقود لإصلاح خطأ الربط في avc.c */
 bool susfs_is_avc_log_spoofing_enabled = true;
+
 
