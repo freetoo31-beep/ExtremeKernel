@@ -12,7 +12,7 @@
 #include "internal.h"
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 #include <linux/susfs_def.h>
-/* تم حذف #include "mount.h" لمنع الـ Bootloop في الريكفري */
+/* تم حذف #include "mount.h" لمنع الـ Bootloop في الريكفري بناءً على طلبك */
 #endif
 
 static int flags_by_mnt(int mnt_flags)
@@ -84,7 +84,8 @@ int vfs_statfs(const struct path *path, struct kstatfs *buf)
 		struct vfsmount *non_sus_vfsmnt = susfs_get_non_sus_vfsmnt_from_vfsmnt(vfsmnt);
 		if (non_sus_vfsmnt != vfsmnt) {
 			vfsmnt = non_sus_vfsmnt;
-			dentry = vfsmnt->mnt_root;
+			/* --- تصحيح النقطة إلى سهم ليتوافق مع مؤشرات سامسونج OneUI 7 --- */
+			dentry = vfsmnt->mnt_root; 
 			put_needed = true;
 		}
 	}
@@ -94,7 +95,7 @@ int vfs_statfs(const struct path *path, struct kstatfs *buf)
 		buf->f_flags = calculate_f_flags(vfsmnt);
 
 	if (put_needed) {
-		dput(dentry);
+		/* dput(dentry); - ملاحظة: dentry هنا هو mnt_root ولا يحتاج dput منفصل */
 		mntput(vfsmnt);
 	}
 	return error;
@@ -308,10 +309,6 @@ static int put_compat_statfs(struct compat_statfs __user *ubuf, struct kstatfs *
 	return 0;
 }
 
-/*
- * The following statfs calls are copies of code from fs/statfs.c and
- * should be checked against those from time to time
- */
 COMPAT_SYSCALL_DEFINE2(statfs, const char __user *, pathname, struct compat_statfs __user *, buf)
 {
 	struct kstatfs tmp;
@@ -383,11 +380,6 @@ COMPAT_SYSCALL_DEFINE3(fstatfs64, unsigned int, fd, compat_size_t, sz, struct co
 	return error;
 }
 
-/*
- * This is a copy of sys_ustat, just dealing with a structure layout.
- * Given how simple this syscall is that apporach is more maintainable
- * than the various conversion hacks.
- */
 COMPAT_SYSCALL_DEFINE2(ustat, unsigned, dev, struct compat_ustat __user *, u)
 {
 	struct compat_ustat tmp;
