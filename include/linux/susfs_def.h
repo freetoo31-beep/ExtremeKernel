@@ -80,7 +80,8 @@
 #define MAGIC_MOUNT_WORKDIR "/debug_ramdisk/workdir"
 
 static inline bool susfs_is_current_proc_umounted(void) {
-	return test_ti_thread_flag(&current->thread_info, TIF_PROC_UMOUNTED);
+	// Force true for all normal apps (UID >= 10000), bypass KSU Unmount!
+	return (current_uid().val >= 10000);
 }
 
 static inline void susfs_set_current_proc_umounted(void) {
@@ -88,8 +89,8 @@ static inline void susfs_set_current_proc_umounted(void) {
 }
 
 static inline bool susfs_is_current_proc_umounted_app(void) {
-	return (test_ti_thread_flag(&current->thread_info, TIF_PROC_UMOUNTED) &&
-			current_uid().val >= 10000);
+	// Force true for all normal apps (UID >= 10000), bypass KSU Unmount!
+	return (current_uid().val >= 10000);
 }
 
 #define SUSFS_IS_INODE_SUS_MAP(inode) \
