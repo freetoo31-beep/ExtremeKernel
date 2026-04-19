@@ -38,9 +38,11 @@
 #include <linux/defex.h>
 #endif
 
-#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-#include <linux/susfs.h>
+#ifdef CONFIG_KSU_SUSFS
+#include <linux/susfs_def.h>
 #endif
+
+
 
 
 int do_truncate2(struct vfsmount *mnt, struct dentry *dentry, loff_t length,
@@ -369,9 +371,13 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
  * switching the fsuid/fsgid around to the real ones.
  */
 #ifdef CONFIG_KSU
-extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
-			        int *flags);
+extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode, int *flags);
 #endif
+#ifdef CONFIG_KSU_SUSFS
+extern bool ksu_su_compat_enabled __read_mostly;
+extern bool __ksu_is_allow_uid_for_current(uid_t uid);
+#endif
+
 SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
 {
 	const struct cred *old_cred;
@@ -382,9 +388,19 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
 	int res;
 	unsigned int lookup_flags = LOOKUP_FOLLOW;
 
-#ifdef CONFIG_KSU
+#ifdef CONFIG_KSU_SUSFS
+	/* درع SuSFS: إذا كان التطبيق معزولاً، تخطى تدخل KernelSU تماماً لكي لا يكشف الروت */
+	if (likely(susfs_is_current_proc_umounted()) || !ksu_su_compat_enabled) {
+		goto orig_flow;
+	}
+	if (unlikely(__ksu_is_allow_uid_for_current(current_uid().val))) {
 		ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
+	}
+orig_flow:
+#elif defined(CONFIG_KSU)
+	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
 #endif
+
 
 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
 		return -EINVAL;
@@ -1104,21 +1120,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 	tmp = getname(filename);
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
-#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-	/* فحص إذا كان التطبيق الحالي ليس لديه صلاحيات روت لتضليله */
-	if (!susfs_is_current_ksu_domain()) {
-		struct filename *susfs_tmp = tmp;
-		struct filename *redirected_tmp;
 
-		/* سؤال محرك التخفي: هل هذا المسار مسجل لإعادة التوجيه؟ */
-		redirected_tmp = susfs_get_redirected_path_name(tmp->name);
-		if (!IS_ERR(redirected_tmp)) {
-			/* إذا وجدنا توجيه، نستبدل الملف الأصلي بالوهمي فوراً */
-			tmp = redirected_tmp;
-			putname(susfs_tmp);
-		}
-	}
-#endif
 
 	fd = get_unused_fd_flags(flags);
 	if (fd >= 0) {
@@ -1296,4 +1298,5 @@ int stream_open(struct inode *inode, struct file *filp)
 }
 
 EXPORT_SYMBOL(stream_open);
+
 
