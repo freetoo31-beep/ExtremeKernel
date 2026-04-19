@@ -12,6 +12,8 @@
 #include <linux/security.h>
 #include <linux/fs_struct.h>
 #include <linux/sched/task.h>
+
+/* SuSFS: إضافة ملف التعريفات */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 #include <linux/susfs_def.h>
 #endif
@@ -21,6 +23,7 @@
 #include "pnode.h"
 #include "internal.h"
 
+/* SuSFS: تعريف متغيرات الوسيط */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 extern bool susfs_hide_sus_mnts_for_non_su_procs;
 extern bool susfs_is_current_ksu_domain(void);
@@ -110,6 +113,7 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 	struct super_block *sb = mnt_path.dentry->d_sb;
 	int err;
 
+/* SuSFS: إخفاء مسارات الروت من قائمة الـ Mounts بناءً على الوسيط */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 	if (READ_ONCE(susfs_hide_sus_mnts_for_non_su_procs) &&
 			r->mnt_id >= DEFAULT_KSU_MNT_ID &&
@@ -155,6 +159,7 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	int err;
 
+/* SuSFS: إخفاء تفاصيل مسارات الروت من معلومات الـ Mountinfo بناءً على الوسيط */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 	if (READ_ONCE(susfs_hide_sus_mnts_for_non_su_procs) &&
 			r->mnt_id >= DEFAULT_KSU_MNT_ID &&
@@ -228,6 +233,7 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 	struct super_block *sb = mnt_path.dentry->d_sb;
 	int err;
 
+/* SuSFS: إخفاء إحصائيات مسارات الروت بناءً على الوسيط */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 	if (READ_ONCE(susfs_hide_sus_mnts_for_non_su_procs) &&
 			r->mnt_id >= DEFAULT_KSU_MNT_ID &&
@@ -376,3 +382,4 @@ const struct file_operations proc_mountstats_operations = {
 	.llseek		= seq_lseek,
 	.release	= mounts_release,
 };
+
