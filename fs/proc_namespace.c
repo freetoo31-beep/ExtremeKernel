@@ -115,7 +115,7 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 			r->mnt_id >= DEFAULT_KSU_MNT_ID &&
 			!susfs_is_current_ksu_domain())
 	{
-		return 0;
+		return SEQ_SKIP; /* تم التعديل هنا لضمان مسح السطر بالكامل */
 	}
 #endif
 
@@ -160,7 +160,7 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 			r->mnt_id >= DEFAULT_KSU_MNT_ID &&
 			!susfs_is_current_ksu_domain())
 	{
-		return 0;
+		return SEQ_SKIP; /* تم التعديل هنا لضمان مسح السطر بالكامل */
 	}
 #endif
 
@@ -233,7 +233,7 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 			r->mnt_id >= DEFAULT_KSU_MNT_ID &&
 			!susfs_is_current_ksu_domain())
 	{
-		return 0;
+		return SEQ_SKIP; /* تم التعديل هنا لضمان مسح السطر بالكامل */
 	}
 #endif
 
@@ -376,3 +376,4 @@ const struct file_operations proc_mountstats_operations = {
 	.llseek		= seq_lseek,
 	.release	= mounts_release,
 };
+
