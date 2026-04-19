@@ -12,15 +12,18 @@
 #include <linux/security.h>
 #include <linux/fs_struct.h>
 #include <linux/sched/task.h>
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+#include <linux/susfs_def.h>
+#endif
 
 #include "proc/internal.h" /* only for get_proc_task() in ->open() */
 
 #include "pnode.h"
 #include "internal.h"
 
-/* --- SuSFS v2.0.0 التعديل الاحترافي لـ --- */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-#include <linux/susfs_def.h>
+extern bool susfs_hide_sus_mnts_for_non_su_procs;
+extern bool susfs_is_current_ksu_domain(void);
 #endif
 
 static unsigned mounts_poll(struct file *file, poll_table *wait)
@@ -50,20 +53,20 @@ struct proc_fs_info {
 static int show_sb_opts(struct seq_file *m, struct super_block *sb)
 {
 	static const struct proc_fs_info fs_info[] = {
-		{ SB_SYNCHRONOUS, ",sync" },
-		{ SB_DIRSYNC, ",dirsync" },
-		{ SB_MANDLOCK, ",mand" },
-		{ SB_LAZYTIME, ",lazytime" },
+		{ MS_SYNCHRONOUS, ",sync" },
+		{ MS_DIRSYNC, ",dirsync" },
+		{ MS_MANDLOCK, ",mand" },
+		{ MS_LAZYTIME, ",lazytime" },
 		{ 0, NULL }
 	};
-	const struct proc_fs_info *fs;
+	const struct proc_fs_info *fs_infop;
 
-	for (fs = fs_info; fs->str; fs++) {
-		if (sb->s_flags & fs->flag)
-			seq_puts(m, fs->str);
+	for (fs_infop = fs_info; fs_infop->flag; fs_infop++) {
+		if (sb->s_flags & fs_infop->flag)
+			seq_puts(m, fs_infop->str);
 	}
 
-	return 0;
+	return security_sb_show_options(m, sb);
 }
 
 static void show_mnt_opts(struct seq_file *m, struct vfsmount *mnt)
@@ -77,11 +80,11 @@ static void show_mnt_opts(struct seq_file *m, struct vfsmount *mnt)
 		{ MNT_RELATIME, ",relatime" },
 		{ 0, NULL }
 	};
-	const struct proc_fs_info *fs;
+	const struct proc_fs_info *fs_infop;
 
-	for (fs = mnt_info; fs->str; fs++) {
-		if (mnt->mnt_flags & fs->flag)
-			seq_puts(m, fs->str);
+	for (fs_infop = mnt_info; fs_infop->flag; fs_infop++) {
+		if (mnt->mnt_flags & fs_infop->flag)
+			seq_puts(m, fs_infop->str);
 	}
 }
 
@@ -90,16 +93,28 @@ static inline void mangle(struct seq_file *m, const char *s)
 	seq_escape(m, s, " \t\n\\");
 }
 
-static int show_vfsmnt(struct seq_file *m, void *v)
+static void show_type(struct seq_file *m, struct super_block *sb)
 {
-	struct mount *r = list_entry(v, struct mount, mnt_list);
-	struct path mnt_path = { .dentry = r->mnt.mnt_root, .mnt = &r->mnt };
+	mangle(m, sb->s_type->name);
+	if (sb->s_subtype && sb->s_subtype[0]) {
+		seq_putc(m, '.');
+		mangle(m, sb->s_subtype);
+	}
+}
+
+static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
+{
+	struct proc_mounts *p = m->private;
+	struct mount *r = real_mount(mnt);
+	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	struct super_block *sb = mnt_path.dentry->d_sb;
 	int err;
 
-/* SuSFS: إخفاء مسارات الروت من قائمة الـ Mounts */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	if (likely(susfs_is_current_proc_umounted()) && r->mnt_id >= DEFAULT_KSU_MNT_ID) {
+	if (READ_ONCE(susfs_hide_sus_mnts_for_non_su_procs) &&
+			r->mnt_id >= DEFAULT_KSU_MNT_ID &&
+			!susfs_is_current_ksu_domain())
+	{
 		return 0;
 	}
 #endif
@@ -112,50 +127,68 @@ static int show_vfsmnt(struct seq_file *m, void *v)
 		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
 	}
 	seq_putc(m, ' ');
-	seq_path_root(m, &mnt_path, &r->mnt_ns->root, " \t\n\\");
+	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
+	err = seq_path_root(m, &mnt_path, &p->root, " \t\n\\");
+	if (err)
+		goto out;
 	seq_putc(m, ' ');
-	mangle(m, sb->s_type->name);
-	seq_puts(m, sb->s_flags & SB_RDONLY ? " ro" : " rw");
+	show_type(m, sb);
+	seq_puts(m, __mnt_is_readonly(mnt) ? " ro" : " rw");
 	err = show_sb_opts(m, sb);
 	if (err)
 		goto out;
-	show_mnt_opts(m, &r->mnt);
-	if (sb->s_op->show_options)
+	show_mnt_opts(m, mnt);
+	if (sb->s_op->show_options2)
+			err = sb->s_op->show_options2(mnt, m, mnt_path.dentry);
+	else if (sb->s_op->show_options)
 		err = sb->s_op->show_options(m, mnt_path.dentry);
 	seq_puts(m, " 0 0\n");
 out:
 	return err;
 }
 
-static int show_mountinfo(struct seq_file *m, void *v)
+static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 {
-	struct mount *r = list_entry(v, struct mount, mnt_list);
-	struct super_block *sb = r->mnt.mnt_sb;
-	struct mount *ms = r->mnt_parent;
-	struct path mnt_path = { .dentry = r->mnt.mnt_root, .mnt = &r->mnt };
+	struct proc_mounts *p = m->private;
+	struct mount *r = real_mount(mnt);
+	struct super_block *sb = mnt->mnt_sb;
+	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	int err;
 
-/* SuSFS: إخفاء تفاصيل مسارات الروت من معلومات الـ Mountinfo */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	if (likely(susfs_is_current_proc_umounted()) && r->mnt_id >= DEFAULT_KSU_MNT_ID) {
+	if (READ_ONCE(susfs_hide_sus_mnts_for_non_su_procs) &&
+			r->mnt_id >= DEFAULT_KSU_MNT_ID &&
+			!susfs_is_current_ksu_domain())
+	{
 		return 0;
 	}
 #endif
 
-	seq_printf(m, "%i %i %u:%u ", r->mnt_id, ms->mnt_id,
+	seq_printf(m, "%i %i %u:%u ", r->mnt_id, r->mnt_parent->mnt_id,
 		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
-	mangle(m, r->mnt.mnt_root->d_name.name);
+	if (sb->s_op->show_path) {
+		err = sb->s_op->show_path(m, mnt->mnt_root);
+		if (err)
+			goto out;
+	} else {
+		seq_dentry(m, mnt->mnt_root, " \t\n\\");
+	}
 	seq_putc(m, ' ');
-	seq_path_root(m, &mnt_path, &r->mnt_ns->root, " \t\n\\");
-	seq_puts(m, mnt_path.mnt->mnt_flags & MNT_READONLY ? " ro" : " rw");
-	show_mnt_opts(m, mnt_path.mnt);
 
-	/* tag list */
+	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
+	err = seq_path_root(m, &mnt_path, &p->root, " \t\n\\");
+	if (err)
+		goto out;
+
+	seq_puts(m, mnt->mnt_flags & MNT_READONLY ? " ro" : " rw");
+	show_mnt_opts(m, mnt);
+
+	/* Tagged fields ("foo:X" or "bar") */
 	if (IS_MNT_SHARED(r))
 		seq_printf(m, " shared:%i", r->mnt_group_id);
 	if (IS_MNT_SLAVE(r)) {
 		int master = r->mnt_master->mnt_group_id;
-		int dom = get_dominating_id(r, &r->mnt_ns->root);
+		int dom = get_dominating_id(r, &p->root);
 		seq_printf(m, " master:%i", master);
 		if (dom && dom != master)
 			seq_printf(m, " propagate_from:%i", dom);
@@ -163,65 +196,86 @@ static int show_mountinfo(struct seq_file *m, void *v)
 	if (IS_MNT_UNBINDABLE(r))
 		seq_puts(m, " unbindable");
 
-	/* في 4.14 لا يوجد لدينا ميزة التحقق من المجلدات المهملة كما في 5.15، لذا نلتزم بالهيكل الأصلي */
+	/* Filesystem specific data */
 	seq_puts(m, " - ");
-	mangle(m, sb->s_type->name);
+	show_type(m, sb);
 	seq_putc(m, ' ');
 	if (sb->s_op->show_devname) {
-		err = sb->s_op->show_devname(m, mnt_path.dentry);
+		err = sb->s_op->show_devname(m, mnt->mnt_root);
 		if (err)
 			goto out;
 	} else {
 		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
 	}
-	seq_putc(m, ' ');
-	seq_puts(m, sb->s_flags & SB_RDONLY ? "ro" : "rw");
+	seq_puts(m, sb_rdonly(sb) ? " ro" : " rw");
 	err = show_sb_opts(m, sb);
 	if (err)
 		goto out;
-	if (sb->s_op->show_options)
-		err = sb->s_op->show_options(m, mnt_path.dentry);
+	if (sb->s_op->show_options2) {
+		err = sb->s_op->show_options2(mnt, m, mnt->mnt_root);
+	} else if (sb->s_op->show_options)
+		err = sb->s_op->show_options(m, mnt->mnt_root);
 	seq_putc(m, '\n');
 out:
 	return err;
 }
 
-static int show_vfsstat(struct seq_file *m, void *v)
+static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 {
-	struct mount *r = list_entry(v, struct mount, mnt_list);
-	struct path mnt_path = { .dentry = r->mnt.mnt_root, .mnt = &r->mnt };
+	struct proc_mounts *p = m->private;
+	struct mount *r = real_mount(mnt);
+	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	struct super_block *sb = mnt_path.dentry->d_sb;
 	int err;
 
-/* SuSFS: إخفاء إحصائيات مسارات الروت */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	if (likely(susfs_is_current_proc_umounted()) && r->mnt_id >= DEFAULT_KSU_MNT_ID) {
+	if (READ_ONCE(susfs_hide_sus_mnts_for_non_su_procs) &&
+			r->mnt_id >= DEFAULT_KSU_MNT_ID &&
+			!susfs_is_current_ksu_domain())
+	{
 		return 0;
 	}
 #endif
 
+	/* device */
 	if (sb->s_op->show_devname) {
+		seq_puts(m, "device ");
 		err = sb->s_op->show_devname(m, mnt_path.dentry);
 		if (err)
 			goto out;
 	} else {
-		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
+		if (r->mnt_devname) {
+			seq_puts(m, "device ");
+			mangle(m, r->mnt_devname);
+		} else
+			seq_puts(m, "no device");
 	}
+
+	/* mount point */
+	seq_puts(m, " mounted on ");
+	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
+	err = seq_path_root(m, &mnt_path, &p->root, " \t\n\\");
+	if (err)
+		goto out;
 	seq_putc(m, ' ');
-	seq_path_root(m, &mnt_path, &r->mnt_ns->root, " \t\n\\");
-	seq_putc(m, ' ');
-	mangle(m, sb->s_type->name);
-	seq_putc(m, ' ');
-	show_mnt_opts(m, &r->mnt);
-	if (sb->s_op->show_stats)
+
+	/* file system type */
+	seq_puts(m, "with fstype ");
+	show_type(m, sb);
+
+	/* optional statistics */
+	if (sb->s_op->show_stats) {
+		seq_putc(m, ' ');
 		err = sb->s_op->show_stats(m, mnt_path.dentry);
+	}
+
 	seq_putc(m, '\n');
 out:
 	return err;
 }
 
 static int mounts_open_common(struct inode *inode, struct file *file,
-			      int (*show)(struct seq_file *, void *))
+			      int (*show)(struct seq_file *, struct vfsmount *))
 {
 	struct task_struct *task = get_proc_task(inode);
 	struct nsproxy *nsp;
@@ -236,21 +290,21 @@ static int mounts_open_common(struct inode *inode, struct file *file,
 
 	task_lock(task);
 	nsp = task->nsproxy;
-	if (nsp) {
-		ns = nsp->mnt_ns;
-		if (ns)
-			get_mnt_ns(ns);
+	if (!nsp || !nsp->mnt_ns) {
+		task_unlock(task);
+		put_task_struct(task);
+		goto err;
 	}
-	task_unlock(task);
-	if (!ns)
-		goto err_put_task;
-
-	ret = -EACCES;
-	if (!ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS))
+	ns = nsp->mnt_ns;
+	get_mnt_ns(ns);
+	if (!task->fs) {
+		task_unlock(task);
+		put_task_struct(task);
+		ret = -ENOENT;
 		goto err_put_ns;
-
+	}
 	get_fs_root(task->fs, &root);
-
+	task_unlock(task);
 	put_task_struct(task);
 
 	ret = seq_open_private(file, &mounts_op, sizeof(struct proc_mounts));
@@ -272,8 +326,6 @@ static int mounts_open_common(struct inode *inode, struct file *file,
 	path_put(&root);
  err_put_ns:
 	put_mnt_ns(ns);
- err_put_task:
-	put_task_struct(task);
  err:
 	return ret;
 }
@@ -324,4 +376,3 @@ const struct file_operations proc_mountstats_operations = {
 	.llseek		= seq_lseek,
 	.release	= mounts_release,
 };
-
