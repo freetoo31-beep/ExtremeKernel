@@ -1,4 +1,4 @@
-Name: ExtremeKernel - Legacy SuSFS Edition
+name: ExtremeKernel - Legacy SuSFS Edition
 
 on:
   workflow_dispatch:
