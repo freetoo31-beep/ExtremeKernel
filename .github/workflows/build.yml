@@ -47,33 +47,28 @@ jobs:
         if: steps.check.outputs.proceed == 'true'
         run: |
           sudo apt-get update
-          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc libelf-dev
+          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc
 
-      # 4. ضبط الهوية والاسم (بدون حقن defconfig)
-      - name: Set KernelSU Version & Stealth Tag
+      # 4. حقن الإعدادات والاسم (علاج المشاكل يدوياً)
+      - name: Fix Headers & Set Stealth
         if: steps.check.outputs.proceed == 'true'
         run: |
-          echo "Setting up legacy_susfs identity for ${{ matrix.model }}..."
+          echo "Processing ${{ matrix.model }}..."
           
-          # ضبط رقم الإصدار والاسم legacy_susfs ليتعرف عليه تطبيق KernelSU
+          # ب- ضبط رقم الإصدار والاسم legacy_susfs (تنظيف الرموز المخفية آلياً)
           KSU_H="drivers/kernelsu/ksu.h"
-          if [ -f "$KSU_H" ]; then
-            sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33100/' $KSU_H
-            sed -i 's/#define KSU_VERSION_TAG .*/#define KSU_VERSION_TAG "legacy_susfs"/' $KSU_H
-            echo "KSU Header Patched Successfully."
-          else
-            echo "Warning: ksu.h not found, skipping patch."
-          fi
+          sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33100/' $KSU_H
+          sed -i 's/#define KSU_VERSION_TAG .*/#define KSU_VERSION_TAG "legacy_susfs"/' $KSU_H
           
-          echo "Configuration Done!"
+          echo "Injection Done!"
 
       # 5. تشغيل عملية البناء
       - name: Build Kernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
-          # تمرير LOCALVERSION كمتغير فارغ لضمان عدم ظهور علامة + في الإصدار
-          yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N LOCALVERSION=
+          export KSU_VERSION=33100
+          yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
       # 6. رفع ملف الـ ZIP
       - name: Upload Kernel Artifact
