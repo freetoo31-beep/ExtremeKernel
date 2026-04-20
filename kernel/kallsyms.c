@@ -3,13 +3,13 @@
  *
  * Rewritten and vastly simplified by Rusty Russell for in-kernel
  * module loader:
- *   Copyright 2002 Rusty Russell <rusty@rustcorp.com.au> IBM Corporation
+ * Copyright 2002 Rusty Russell <rusty@rustcorp.com.au> IBM Corporation
  *
  * ChangeLog:
  *
  * (25/Aug/2004) Paulo Marques <pmarques@grupopie.com>
- *      Changed the compression method from stem compression to "table lookup"
- *      compression (see scripts/kallsyms.c for a more complete description)
+ * Changed the compression method from stem compression to "table lookup"
+ * compression (see scripts/kallsyms.c for a more complete description)
  */
 #include <linux/kallsyms.h>
 #include <linux/module.h>
@@ -27,6 +27,12 @@
 #include <linux/compiler.h>
 #if defined(CONFIG_SEC_DEBUG)
 #include <linux/sec_debug.h>
+#endif
+
+/* 🛡️ SuSFS Headers Integration */
+#ifdef CONFIG_KSU_SUSFS
+#include <linux/susfs.h>
+#include <linux/string.h>
 #endif
 
 #include <asm/sections.h>
@@ -248,7 +254,7 @@ unsigned long kallsyms_lookup_name(const char *name)
 	}
 	return module_kallsyms_lookup_name(name);
 }
-EXPORT_SYMBOL_GPL(kallsyms_lookup_name);
+EXPORT_SYMBOL(kallsyms_lookup_name);
 
 int kallsyms_on_each_symbol(int (*fn)(void *, const char *, struct module *,
 				      unsigned long),
@@ -267,7 +273,7 @@ int kallsyms_on_each_symbol(int (*fn)(void *, const char *, struct module *,
 	}
 	return module_kallsyms_on_each_symbol(fn, data);
 }
-EXPORT_SYMBOL_GPL(kallsyms_on_each_symbol);
+EXPORT_SYMBOL(kallsyms_on_each_symbol);
 
 static unsigned long get_symbol_pos(unsigned long addr,
 				    unsigned long *symbolsize,
@@ -373,7 +379,7 @@ static inline void cleanup_symbol_name(char *s) {}
  * Lookup an address
  * - modname is set to NULL if it's in the kernel.
  * - We guarantee that the returned name is valid until we reschedule even if.
- *   It resides in a module.
+ * It resides in a module.
  * - We also guarantee that modname will be valid until rescheduled.
  */
 const char *kallsyms_lookup(unsigned long addr,
@@ -509,7 +515,7 @@ int sprint_symbol(char *buffer, unsigned long address)
 {
 	return __sprint_symbol(buffer, address, 0, 1);
 }
-EXPORT_SYMBOL_GPL(sprint_symbol);
+EXPORT_SYMBOL(sprint_symbol);
 
 /**
  * sprint_symbol_no_offset - Look up a kernel symbol and return it in a text buffer
@@ -526,7 +532,7 @@ int sprint_symbol_no_offset(char *buffer, unsigned long address)
 {
 	return __sprint_symbol(buffer, address, 0, 0);
 }
-EXPORT_SYMBOL_GPL(sprint_symbol_no_offset);
+EXPORT_SYMBOL(sprint_symbol_no_offset);
 
 /**
  * sprint_backtrace - Look up a backtrace symbol and return it in a text buffer
@@ -673,6 +679,14 @@ static int s_show(struct seq_file *m, void *p)
 {
 	struct kallsym_iter *iter = m->private;
 
+	/* 🛡️ SuSFS Symbol Hiding Logic */
+#ifdef CONFIG_KSU_SUSFS
+	if (susfs_is_current_proc_umounted()) {
+		if (strstr(iter->name, "ksu_") || strstr(iter->name, "susfs_"))
+			return 0;
+	}
+#endif
+
 	/* Some debugging symbols have no name.  Ignore them. */
 	if (!iter->name[0])
 		return 0;
@@ -785,3 +799,4 @@ static int __init kallsyms_init(void)
 	return 0;
 }
 device_initcall(kallsyms_init);
+
