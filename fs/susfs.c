@@ -1242,37 +1242,58 @@ void susfs_start_sdcard_monitor_fn(void) {
 	}
 }
 
-/* susfs_init */
-void susfs_init(void) {
-	SUSFS_LOGI("susfs is initialized! version: " SUSFS_VERSION " \n");
-}
-
-/* No module exit is needed becuase it should never be a loadable kernel module */
-//void __init susfs_exit(void)
-
 /* =====================================================================
- * 4.14 BACKPORT BRIDGE (SHIM FUNCTIONS)
- * Written to bridge upstream SuSFS calls to LeDrew's 4.14 engine
+ * SYSFS BRIDGE - بناء جسر التواصل مع النظام
  * ===================================================================== */
 
-/* 1. Bridge for readdir.c (Hiding logic) */
-bool susfs_is_sus_path(const char *name) {
-    return susfs_is_sus_android_data_d_name_found(name) || 
-           susfs_is_sus_sdcard_d_name_found(name);
+static struct kobject *susfs_kobj;
+
+/* دالة لاستقبال المسارات من التطبيق وتخزينها في الكيرنل */
+static ssize_t sus_path_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count) {
+    if (count > 0) {
+        /* هنا يتم استدعاء دالة الإضافة التي برمجناها سابقاً */
+        susfs_add_sus_path(buf); 
+    }
+    return count;
 }
 
-/* 2. Dummy bridge for Tracepoints in namei.c (Android 12+ feature) */
-/* 🛡️ تم إضافة susfs_ في البداية لتتطابق مع الهيدر susfs.h */
-bool susfs_trace_inodepath_enabled(void) { 
-    return false; 
-}
+/* تعريف ملف sus_path داخل المجلد */
+static struct kobj_attribute sus_path_attribute = __ATTR_WO(sus_path);
 
-void susfs_trace_inodepath(struct vfsmount *mnt, struct dentry *dentry)
+static struct attribute *susfs_attrs[] = {
+    &sus_path_attribute.attr,
+    NULL,
+};
+
+static struct attribute_group susfs_attr_group = {
+    .attrs = susfs_attrs,
+};
+
+/* ---------------------------------------------------------------------
+ * دالة التهيئة الأساسية - Initialization
+ * --------------------------------------------------------------------- */
+void susfs_init(void)
 {
-    /* Do nothing for 4.14 */
+    int error = 0;
+
+    /* 1. إنشاء مجلد /sys/fs/susfs */
+    susfs_kobj = kobject_create_and_add("susfs", fs_kobj);
+    if (!susfs_kobj) {
+        pr_err("susfs: failed to create kobject (sysfs bridge)\n");
+        return;
+    }
+
+    /* 2. إنشاء الملفات داخل المجلد (مثل sus_path) */
+    error = sysfs_create_group(susfs_kobj, &susfs_attr_group);
+    if (error) {
+        kobject_put(susfs_kobj);
+        pr_err("susfs: failed to create sysfs group\n");
+        return;
+    }
+
+    SUSFS_LOGI("susfs: Bridge initialized! /sys/fs/susfs is now live. version: %s\n", SUSFS_VERSION);
 }
 
-/* 3. Dummy bridge for KernelSU mount reordering in setuid_hook.c */
-void susfs_reorder_mnt_id(void) { 
-    // Do nothing for 4.14
-}
+/* استدعاء الدالة في مرحلة مبكرة جداً من الإقلاع */
+core_initcall(susfs_init);
+
