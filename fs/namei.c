@@ -922,18 +922,15 @@ static int complete_walk(struct nameidata *nd)
 	}
 
 	if (likely(!(nd->flags & LOOKUP_JUMPED))) {
-		success_walk_trace(nd);
 		return 0;
 	}
 
 	if (likely(!(dentry->d_flags & DCACHE_OP_WEAK_REVALIDATE))) {
-		success_walk_trace(nd);
 		return 0;
 	}
 
 	status = dentry->d_op->d_weak_revalidate(dentry, nd->flags);
 	if (status > 0) {
-		success_walk_trace(nd);
 		return 0;
 	}
 
@@ -5326,3 +5323,4 @@ const struct inode_operations page_symlink_inode_operations = {
 	.get_link	= page_get_link,
 };
 EXPORT_SYMBOL(page_symlink_inode_operations);
+
