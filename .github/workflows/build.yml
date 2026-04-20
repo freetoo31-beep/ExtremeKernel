@@ -1,4 +1,4 @@
-name: ExtremeKernel - Legacy SuSFS Edition
+Name: ExtremeKernel - Legacy SuSFS Edition
 
 on:
   workflow_dispatch:
@@ -47,38 +47,33 @@ jobs:
         if: steps.check.outputs.proceed == 'true'
         run: |
           sudo apt-get update
-          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc
+          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc libelf-dev
 
-      # 4. حقن الإعدادات والاسم (علاج المشاكل يدوياً)
-      - name: Fix Headers & Set Stealth
+      # 4. ضبط الهوية والاسم (بدون حقن defconfig)
+      - name: Set KernelSU Version & Stealth Tag
         if: steps.check.outputs.proceed == 'true'
         run: |
-          echo "Processing ${{ matrix.model }}..."
+          echo "Setting up legacy_susfs identity for ${{ matrix.model }}..."
           
-          # أ- تفعيل خيارات SuSFS في الـ defconfig
-          find arch/arm64/configs/ -name "*${{ matrix.model }}*_defconfig" -exec sh -c '
-            echo "CONFIG_KSU_SUSFS=y" >> "$1"
-            echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "$1"
-            echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> "$1"
-            echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "$1"
-            echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> "$1"
-            echo "CONFIG_KSU_SUSFS_ENABLE_LOG=n" >> "$1"
-          ' _ {} \;
-
-          # ب- ضبط رقم الإصدار والاسم legacy_susfs (تنظيف الرموز المخفية آلياً)
+          # ضبط رقم الإصدار والاسم legacy_susfs ليتعرف عليه تطبيق KernelSU
           KSU_H="drivers/kernelsu/ksu.h"
-          sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33100/' $KSU_H
-          sed -i 's/#define KSU_VERSION_TAG .*/#define KSU_VERSION_TAG "legacy_susfs"/' $KSU_H
+          if [ -f "$KSU_H" ]; then
+            sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33100/' $KSU_H
+            sed -i 's/#define KSU_VERSION_TAG .*/#define KSU_VERSION_TAG "legacy_susfs"/' $KSU_H
+            echo "KSU Header Patched Successfully."
+          else
+            echo "Warning: ksu.h not found, skipping patch."
+          fi
           
-          echo "Injection Done!"
+          echo "Configuration Done!"
 
       # 5. تشغيل عملية البناء
       - name: Build Kernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
-          export KSU_VERSION=33100
-          yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
+          # تمرير LOCALVERSION كمتغير فارغ لضمان عدم ظهور علامة + في الإصدار
+          yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N LOCALVERSION=
 
       # 6. رفع ملف الـ ZIP
       - name: Upload Kernel Artifact
