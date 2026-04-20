@@ -57,7 +57,8 @@ extern u32 susfs_zygote_sid;
 extern void susfs_run_sus_path_loop(uid_t uid);
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-extern void susfs_reorder_mnt_id(void);
+// تم التعطيل لحل مشكلة undefined symbol
+// extern void susfs_reorder_mnt_id(void);
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 extern void susfs_try_umount(uid_t uid);
@@ -150,7 +151,8 @@ do_umount:
 #endif // #ifndef CONFIG_KSU_SUSFS_TRY_UMOUNT
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
     // We can reorder the mnt_id now after all sus mounts are umounted
-    susfs_reorder_mnt_id();
+    // تم التعطيل لحل مشكلة undefined symbol
+    // susfs_reorder_mnt_id();
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
@@ -173,3 +175,4 @@ void ksu_setuid_hook_exit(void)
     pr_info("ksu_core_exit\n");
     ksu_kernel_umount_exit();
 }
+
