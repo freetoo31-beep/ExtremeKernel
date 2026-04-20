@@ -6501,6 +6501,34 @@ CONFIG_RTL88XXAU=m
 CONFIG_MEDIA_SDR_SUPPORT=y
 
 
+# ==========================================
+# KERNELSU-NEXT, OVERLAYFS & SUSFS (LEGACY 4.14)
+# ==========================================
+CONFIG_KSU=y
+# ضروري جداً لربط SuSFS مع نسخة الـ Next
+CONFIG_KSU_SUSFS_FOR_KSU_NEXT=y
+
+# إعدادات الـ OverlayFS (أساسية لعمل موديولات KernelSU)
+CONFIG_OVERLAY_FS=y
+CONFIG_OVERLAY_FS_REDIRECT_DIR=y
+CONFIG_OVERLAY_FS_INDEX=y
+# ميزة خاصة بـ Next لإدارة الطبقات بشكل أفضل
+CONFIG_KSU_OVERLAYFS=y
+
+# محرك الشبح SuSFS
+CONFIG_KSU_SUSFS=y
+# تفعيل إخفاء المسارات (الذي عدلناه في namei.c و readdir.c)
+CONFIG_KSU_SUSFS_SUS_PATH=y
+# تفعيل إخفاء نقاط التثبيت (الذي عدلناه في proc_namespace.c)
+CONFIG_KSU_SUSFS_SUS_MOUNT=y
+# تفعيل تزييف خصائص الملفات (الذي عدلناه في stat.c)
+CONFIG_KSU_SUSFS_SUS_KSTAT=y
+# ميزات التحويل والعزل
+CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+
+# تفعيل السجلات (اختياري - مفيد جداً في مرحلة التجربة لمعرفة ما يحدث)
+# CONFIG_KSU_SUSFS_ENABLE_LOG=y
 
 
 
