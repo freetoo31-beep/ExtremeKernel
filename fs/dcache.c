@@ -42,9 +42,16 @@
 
 #include "internal.h"
 #include "mount.h"
+
+/* التصحيح: فصل SuSFS عن حماية سامسونج لضمان العمل دائماً */
+#ifdef CONFIG_KSU_SUSFS
+#include <linux/susfs.h>
+#endif
+
 #ifdef CONFIG_KDP_NS
 #include <linux/kdp.h>
 #endif
+
 
 /*
  * Usage:
@@ -2231,6 +2238,11 @@ seqretry:
 				continue;
 		}
 		*seqp = seq;
+		#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+		if (unlikely(susfs_is_current_proc_umounted() && dentry->d_inode && susfs_is_inode_sus_path(dentry->d_inode)))
+			continue;
+#endif
+
 		return dentry;
 	}
 	return NULL;
@@ -2292,19 +2304,6 @@ struct dentry *__d_lookup(const struct dentry *parent, const struct qstr *name)
 	 * Keep the two functions in sync.
 	 */
 
-	/*
-	 * The hash list is protected using RCU.
-	 *
-	 * Take d_lock when comparing a candidate dentry, to avoid races
-	 * with d_move().
-	 *
-	 * It is possible that concurrent renames can mess up our list
-	 * walk here and result in missing our dentry, resulting in the
-	 * false-negative result. d_lookup() protects against concurrent
-	 * renames using rename_lock seqlock.
-	 *
-	 * See Documentation/filesystems/path-lookup.txt for more details.
-	 */
 	rcu_read_lock();
 	
 	hlist_bl_for_each_entry_rcu(dentry, node, b, d_hash) {
@@ -2321,6 +2320,13 @@ struct dentry *__d_lookup(const struct dentry *parent, const struct qstr *name)
 		if (!d_same_name(dentry, parent, name))
 			goto next;
 
+		/* 🛡️ درع SuSFS: الفحص هنا قبل زيادة العداد وقبل التعيين لضمان التخفي والاستقرار */
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+		if (unlikely(susfs_is_current_proc_umounted() && dentry->d_inode && susfs_is_inode_sus_path(dentry->d_inode)))
+			goto next;
+#endif
+
+		/* الآن نزيد العداد لمرة واحدة فقط ونعتمد الملف كـ 'موجود' */
 		dentry->d_lockref.count++;
 		found = dentry;
 		spin_unlock(&dentry->d_lock);
@@ -2332,6 +2338,7 @@ next:
 
  	return found;
 }
+
 
 /**
  * d_hash_and_lookup - hash the qstr then search for a dentry
@@ -3698,3 +3705,4 @@ void __init vfs_caches_init(void)
 	ns_protect = 1;
 #endif
 }
+
