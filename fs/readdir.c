@@ -20,11 +20,14 @@
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 #include <linux/compat.h>
-
 #include <linux/uaccess.h>
 
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 #include <linux/susfs_def.h>
+/* إعلان الدوال الصحيحة لكي لا يعطي المترجم خطأ Undefined Symbol */
+extern bool susfs_is_current_proc_umounted(void);
+extern bool susfs_is_sus_android_data_d_name_found(const char *d_name);
+extern bool susfs_is_sus_sdcard_d_name_found(const char *d_name);
 #endif
 
 int iterate_dir(struct file *file, struct dir_context *ctx)
@@ -101,9 +104,10 @@ static int fillonedir(struct dir_context *ctx, const char *name, int namlen,
 	struct old_linux_dirent __user * dirent;
 	unsigned long d_ino;
 
-/* SuSFS: تصحيح المعاملات لتتوافق مع جسر 4.14 */
+/* SuSFS: التعديل الصحيح بالاعتماد على دوال الأسماء */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name))) {
+	if (unlikely(susfs_is_current_proc_umounted() && 
+	    (susfs_is_sus_android_data_d_name_found(name) || susfs_is_sus_sdcard_d_name_found(name)))) {
 		return 0;
 	}
 #endif
@@ -184,9 +188,10 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 	int reclen = ALIGN(offsetof(struct linux_dirent, d_name) + namlen + 2,
 		sizeof(long));
 
-/* SuSFS: تصحيح المعاملات لتتوافق مع جسر 4.14 */
+/* SuSFS: التعديل الصحيح بالاعتماد على دوال الأسماء */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name))) {
+	if (unlikely(susfs_is_current_proc_umounted() && 
+	    (susfs_is_sus_android_data_d_name_found(name) || susfs_is_sus_sdcard_d_name_found(name)))) {
 		return 0;
 	}
 #endif
@@ -280,9 +285,10 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 	int reclen = ALIGN(offsetof(struct linux_dirent64, d_name) + namlen + 1,
 		sizeof(u64));
 
-/* SuSFS: تصحيح المعاملات لتتوافق مع جسر 4.14 */
+/* SuSFS: التعديل الصحيح بالاعتماد على دوال الأسماء */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name))) {
+	if (unlikely(susfs_is_current_proc_umounted() && 
+	    (susfs_is_sus_android_data_d_name_found(name) || susfs_is_sus_sdcard_d_name_found(name)))) {
 		return 0;
 	}
 #endif
@@ -380,9 +386,10 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
 	struct compat_old_linux_dirent __user *dirent;
 	compat_ulong_t d_ino;
 
-/* SuSFS: تصحيح المعاملات لتتوافق مع جسر 4.14 */
+/* SuSFS: التعديل الصحيح بالاعتماد على دوال الأسماء */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name))) {
+	if (unlikely(susfs_is_current_proc_umounted() && 
+	    (susfs_is_sus_android_data_d_name_found(name) || susfs_is_sus_sdcard_d_name_found(name)))) {
 		return 0;
 	}
 #endif
@@ -461,9 +468,10 @@ static int compat_filldir(struct dir_context *ctx, const char *name, int namlen,
 	int reclen = ALIGN(offsetof(struct compat_linux_dirent, d_name) +
 		namlen + 2, sizeof(compat_long_t));
 
-/* SuSFS: تصحيح المعاملات لتتوافق مع جسر 4.14 */
+/* SuSFS: التعديل الصحيح بالاعتماد على دوال الأسماء */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name))) {
+	if (unlikely(susfs_is_current_proc_umounted() && 
+	    (susfs_is_sus_android_data_d_name_found(name) || susfs_is_sus_sdcard_d_name_found(name)))) {
 		return 0;
 	}
 #endif
