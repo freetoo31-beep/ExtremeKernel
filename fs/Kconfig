@@ -340,21 +340,49 @@ config KSU_SUSFS_SUS_PATH
 	help
 	  Enables hiding of specific paths (like magisk/adb) from apps.
 
+config KSU_SUSFS_SUS_MOUNT
+	bool "Enable SuSFS Hide Mount Support"
+	depends on KSU_SUSFS
+	default y
+
+config KSU_SUSFS_SUS_KSTAT
+	bool "Enable SuSFS Kstat Spoofing Support"
+	depends on KSU_SUSFS
+	default y
+
 config KSU_SUSFS_OPEN_REDIRECT
 	bool "Enable SuSFS Open Redirect Support"
 	depends on KSU_SUSFS
 	default y
-	help
-	  Enables redirecting file open calls to fake paths to bypass root detection.
 
 config KSU_SUSFS_TRY_UMOUNT
 	bool "Enable SuSFS Try Umount Support"
 	depends on KSU_SUSFS
 	default y
-	help
-	  Enables unmounting of sensitive partitions for specific apps.
+
+config KSU_SUSFS_SPOOF_UNAME
+	bool "Enable SuSFS Uname Spoofing Support"
+	depends on KSU_SUSFS
+	default y
+
+config KSU_SUSFS_ENABLE_LOG
+	bool "Enable SuSFS Logging"
+	depends on KSU_SUSFS
+	default n
+
+config KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
+	bool "Hide KSU and SuSFS symbols from kallsyms"
+	depends on KSU_SUSFS
+	default y
+
+config KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
+	bool "Spoof CMDLINE or BOOTCONFIG for SuSFS"
+	depends on KSU_SUSFS
+	default y
+
+config KSU_SUSFS_SUS_MAP
+	bool "Enable SuSFS Sus Map Support"
+	depends on KSU_SUSFS
+	default y
 
 endmenu
-
-endmenu # This closes the main "File systems" menu at the top
-
