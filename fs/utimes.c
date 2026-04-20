@@ -8,6 +8,11 @@
 #include <linux/compat.h>
 #include <asm/unistd.h>
 
+/* 🛡️ SuSFS Integration Headers */
+#ifdef CONFIG_KSU_SUSFS
+#include <linux/susfs.h>
+#endif
+
 #ifdef __ARCH_WANT_SYS_UTIME
 
 /*
@@ -51,6 +56,12 @@ static int utimes_common(const struct path *path, struct timespec64 *times)
 	struct iattr newattrs;
 	struct inode *inode = path->dentry->d_inode;
 	struct inode *delegated_inode = NULL;
+
+	/* 🛡️ درع SuSFS: إخفاء أثر التعديل الزمني للمسارات المحمية */
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_inode_sus_path(inode)))
+		return -ENOENT;
+#endif
 
 	error = mnt_want_write(path->mnt);
 	if (error)
@@ -277,3 +288,4 @@ COMPAT_SYSCALL_DEFINE2(utimes, const char __user *, filename, struct compat_time
 	return compat_sys_futimesat(AT_FDCWD, filename, t);
 }
 #endif
+
