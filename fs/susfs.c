@@ -1266,7 +1266,7 @@ bool trace_inodepath_enabled(void) {
     return false; 
 }
 
-void trace_inodepath(struct vfsmount *mnt, struct dentry *dentry) { 
+void susfs_trace_inodepath(struct vfsmount *mnt, struct dentry *dentry) 
     // Do nothing for 4.14
 }
 
@@ -1274,4 +1274,5 @@ void trace_inodepath(struct vfsmount *mnt, struct dentry *dentry) {
 void susfs_reorder_mnt_id(void) { 
     // Do nothing for 4.14
 }
+
 
