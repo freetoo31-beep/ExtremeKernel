@@ -179,8 +179,8 @@ struct st_susfs_version {
 
 /* --- 4.14 BACKPORT BRIDGE DECLARATIONS --- */
 bool susfs_is_sus_path(const char *name);
-bool trace_inodepath_enabled(void);
-void trace_inodepath(struct vfsmount *mnt, struct dentry *dentry);
+bool susfs_trace_inodepath_enabled(void);
+void susfs_trace_inodepath(struct vfsmount *mnt, struct dentry *dentry);
 void susfs_reorder_mnt_id(void);
 bool susfs_is_current_ksu_domain(void);
 /* ----------------------------------------- */
