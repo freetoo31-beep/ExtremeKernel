@@ -5189,6 +5189,12 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
 	struct inode *inode = d_inode(dentry);
 
+/* 🛡️ درع SuSFS: منع قراءة الروابط الرمزية للملفات المخفية عن التطبيقات المعزولة */
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_inode_sus_path(inode)))
+		return -ENOENT;
+#endif
+
 	if (unlikely(!(inode->i_opflags & IOP_DEFAULT_READLINK))) {
 		if (unlikely(inode->i_op->readlink))
 			return inode->i_op->readlink(dentry, buffer, buflen);
@@ -5204,6 +5210,7 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 	return generic_readlink(dentry, buffer, buflen);
 }
 EXPORT_SYMBOL(vfs_readlink);
+
 
 /**
  * vfs_get_link - get symlink body
