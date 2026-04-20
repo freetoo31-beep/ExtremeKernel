@@ -1251,14 +1251,13 @@ static struct kobject *susfs_kobj;
 /* دالة لاستقبال المسارات من التطبيق وتخزينها في الكيرنل */
 static ssize_t sus_path_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count) {
     if (count > 0) {
-        /* إصلاح الخطأ: تحويل المؤشر ليناسب متطلبات الدالة */
+        /* التعديل الجديد: تحويل المؤشر ليقبله المترجم */
         void __user *u_ptr = (void __user *)buf;
         susfs_add_sus_path((void __user **)&u_ptr); 
     }
     return count;
 }
 
-/* تعريف ملف sus_path داخل المجلد */
 static struct kobj_attribute sus_path_attribute = __ATTR_WO(sus_path);
 
 static struct attribute *susfs_attrs[] = {
@@ -1273,19 +1272,17 @@ static struct attribute_group susfs_attr_group = {
 /* ---------------------------------------------------------------------
  * دالة التهيئة الأساسية - Initialization
  * --------------------------------------------------------------------- */
-/* إصلاح الخطأ: تغيير نوع الدالة إلى int ليتناسب مع core_initcall */
+/* التعديل الجديد: int بدلاً من void */
 int susfs_init(void)
 {
     int error = 0;
 
-    /* 1. إنشاء مجلد /sys/fs/susfs */
     susfs_kobj = kobject_create_and_add("susfs", fs_kobj);
     if (!susfs_kobj) {
         pr_err("susfs: failed to create kobject (sysfs bridge)\n");
         return -ENOMEM;
     }
 
-    /* 2. إنشاء الملفات داخل المجلد */
     error = sysfs_create_group(susfs_kobj, &susfs_attr_group);
     if (error) {
         kobject_put(susfs_kobj);
@@ -1295,8 +1292,7 @@ int susfs_init(void)
 
     SUSFS_LOGI("susfs: Bridge initialized! /sys/fs/susfs is now live. version: %s\n", SUSFS_VERSION);
     
-    return 0; /* تعيد 0 في حال النجاح */
+    return 0; /* التعديل الجديد: إرجاع 0 */
 }
 
-/* استدعاء الدالة في مرحلة مبكرة من الإقلاع */
 core_initcall(susfs_init);
