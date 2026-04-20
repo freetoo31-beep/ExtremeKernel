@@ -40,8 +40,8 @@
 
 #ifdef CONFIG_KSU_SUSFS
 #include <linux/susfs_def.h>
+#include <linux/susfs.h> /* أضف هذا السطر أيضاً لضمان تعريف الدوال */
 #endif
-
 
 
 
@@ -388,18 +388,21 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
 	int res;
 	unsigned int lookup_flags = LOOKUP_FOLLOW;
 
+/* 🛡️ الدرع المضاف في open.c */
 #ifdef CONFIG_KSU_SUSFS
-	/* درع SuSFS: إذا كان التطبيق معزولاً، تخطى تدخل KernelSU تماماً لكي لا يكشف الروت */
-	if (likely(susfs_is_current_proc_umounted()) || !ksu_su_compat_enabled) {
+	if (likely(susfs_is_current_proc_umounted())) {
 		goto orig_flow;
 	}
-	if (unlikely(__ksu_is_allow_uid_for_current(current_uid().val))) {
-		ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
-	}
-orig_flow:
-#elif defined(CONFIG_KSU)
+#endif
+
+#ifdef CONFIG_KSU
 	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
 #endif
+
+#ifdef CONFIG_KSU_SUSFS
+orig_flow:
+#endif
+
 
 
 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
@@ -1298,5 +1301,4 @@ int stream_open(struct inode *inode, struct file *filp)
 }
 
 EXPORT_SYMBOL(stream_open);
-
 
