@@ -1262,17 +1262,17 @@ bool susfs_is_sus_path(const char *name) {
 }
 
 /* 2. Dummy bridge for Tracepoints in namei.c (Android 12+ feature) */
-bool trace_inodepath_enabled(void) { 
+/* 🛡️ تم إضافة susfs_ في البداية لتتطابق مع الهيدر susfs.h */
+bool susfs_trace_inodepath_enabled(void) { 
     return false; 
 }
 
-void susfs_trace_inodepath(struct vfsmount *mnt, struct dentry *dentry) 
-    // Do nothing for 4.14
+void susfs_trace_inodepath(struct vfsmount *mnt, struct dentry *dentry)
+{
+    /* Do nothing for 4.14 */
 }
 
 /* 3. Dummy bridge for KernelSU mount reordering in setuid_hook.c */
 void susfs_reorder_mnt_id(void) { 
     // Do nothing for 4.14
 }
-
-
