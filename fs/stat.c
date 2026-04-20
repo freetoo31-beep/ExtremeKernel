@@ -181,9 +181,21 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
 	int error = -EINVAL;
 	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
 
+/* 🛡️ درع SuSFS: حماية طلبات الـ Stat من كشف KernelSU */
+#ifdef CONFIG_KSU_SUSFS
+	if (likely(susfs_is_current_proc_umounted())) {
+		goto orig_flow;
+	}
+#endif
+
 #ifdef CONFIG_KSU
 	ksu_handle_stat(&dfd, &filename, &flags);
 #endif
+
+#ifdef CONFIG_KSU_SUSFS
+orig_flow:
+#endif
+
 
 	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
 		       AT_EMPTY_PATH | KSTAT_QUERY_FLAGS)) != 0)
