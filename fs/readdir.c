@@ -101,8 +101,9 @@ static int fillonedir(struct dir_context *ctx, const char *name, int namlen,
 	struct old_linux_dirent __user * dirent;
 	unsigned long d_ino;
 
+/* SuSFS: تصحيح المعاملات لتتوافق مع جسر 4.14 */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name))) {
 		return 0;
 	}
 #endif
@@ -183,8 +184,9 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 	int reclen = ALIGN(offsetof(struct linux_dirent, d_name) + namlen + 2,
 		sizeof(long));
 
+/* SuSFS: تصحيح المعاملات لتتوافق مع جسر 4.14 */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name))) {
 		return 0;
 	}
 #endif
@@ -278,8 +280,9 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 	int reclen = ALIGN(offsetof(struct linux_dirent64, d_name) + namlen + 1,
 		sizeof(u64));
 
+/* SuSFS: تصحيح المعاملات لتتوافق مع جسر 4.14 */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name))) {
 		return 0;
 	}
 #endif
@@ -377,8 +380,9 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
 	struct compat_old_linux_dirent __user *dirent;
 	compat_ulong_t d_ino;
 
+/* SuSFS: تصحيح المعاملات لتتوافق مع جسر 4.14 */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name))) {
 		return 0;
 	}
 #endif
@@ -457,8 +461,9 @@ static int compat_filldir(struct dir_context *ctx, const char *name, int namlen,
 	int reclen = ALIGN(offsetof(struct compat_linux_dirent, d_name) +
 		namlen + 2, sizeof(compat_long_t));
 
+/* SuSFS: تصحيح المعاملات لتتوافق مع جسر 4.14 */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name, namlen, 0, 0))) {
+	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_sus_path(name))) {
 		return 0;
 	}
 #endif
@@ -532,3 +537,4 @@ COMPAT_SYSCALL_DEFINE3(getdents, unsigned int, fd,
 	return error;
 }
 #endif
+
