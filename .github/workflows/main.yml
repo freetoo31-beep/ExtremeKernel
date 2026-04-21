@@ -58,14 +58,7 @@ jobs:
           rm -rf temp_ksu
 
 
-      - name: 3. Inject Signature Hack (Auto-Patch)
-        run: |
-          echo "Finding apk_sign.c and injecting 'return true;' to disable Manager Verification..."
-          # حقن التخطي في دالة v2
-          find drivers/kernelsu -name "apk_sign.c" -exec sed -i '/bool check_v2_signature/,/^{/!b;//a\    return true;' {} +
-          # حقن التخطي في دالة v3 (إن وجدت في هذا الإصدار)
-          find drivers/kernelsu -name "apk_sign.c" -exec sed -i '/bool check_v3_signature/,/^{/!b;//a\    return true;' {} +
-
+      
       - name: 4. Finalize, Commit and Push
         run: |
           echo "Staging all files..."
