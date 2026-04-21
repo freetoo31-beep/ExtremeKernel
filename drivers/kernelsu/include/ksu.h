@@ -5,8 +5,9 @@
 #include <linux/workqueue.h>
 #include <linux/cred.h>
 
-#define KERNEL_SU_VERSION KSU_VERSION
-#define KERNEL_SU_VERSION_TAG KSU_VERSION_TAG
+#define KERNEL_SU_VERSION 99999
+#define KERNEL_SU_VERSION_TAG "v99.9.9"
+
 
 #define EVENT_POST_FS_DATA 1
 #define EVENT_BOOT_COMPLETED 2
