@@ -44,16 +44,19 @@ jobs:
           echo "Checking out the specific commit..."
           git checkout 1b729822596187d8bdcb19906abbb1c9e4357afd
           
-          echo "Destroying .git folder to make files physical (Not a submodule)..."
+          echo "Destroying .git folder..."
           rm -rf .git
           cd ..
           
-          echo "Moving files into drivers/kernelsu..."
+          echo "Moving ACTUAL driver files from the 'kernel' folder..."
           mkdir -p drivers/kernelsu
-          mv temp_ksu/* drivers/kernelsu/
-          # Move hidden files if any (like .gitignore)
-          mv temp_ksu/.* drivers/kernelsu/ 2>/dev/null || true
+          
+          # التعديل السحري هنا: نقل محتويات مجلد kernel فقط بدلاً من كل شيء
+          mv temp_ksu/kernel/* drivers/kernelsu/
+          
+          # تنظيف الملفات المؤقتة
           rm -rf temp_ksu
+
 
       - name: 3. Inject Signature Hack (Auto-Patch)
         run: |
