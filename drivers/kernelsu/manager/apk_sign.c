@@ -222,11 +222,9 @@ static bool has_v1_signature_file(struct file *fp)
 }
 
 static __always_inline bool check_v2_signature(char *path,
-    return true;
 						unsigned expected_size,
 						const char *expected_sha256)
 {
-    return true;
 	unsigned char buffer[0x11] = { 0 };
 	u32 size4;
 	u64 size8, size_of_block;
