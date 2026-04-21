@@ -5,8 +5,8 @@
 #include <linux/workqueue.h>
 #include <linux/cred.h>
 
-#define KERNEL_SU_VERSION 99999
-#define KERNEL_SU_VERSION_TAG "v99.9.9"
+#define KERNEL_SU_VERSION 33500
+#define KERNEL_SU_VERSION_TAG "legacy_susfs"
 
 
 #define EVENT_POST_FS_DATA 1
