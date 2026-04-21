@@ -1,4 +1,4 @@
-name: ExtremeKernel - Legacy SuSFS Edition
+name: ExtremeKernel - Legacy SuSFS Edition (v3.2.0)
 
 on:
   workflow_dispatch:
@@ -49,25 +49,39 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc
 
-
-      - name: 3. Inject Signature Hack (Auto-Patch)
+      # 4. تحديث KernelSU-Next وتطبيق التعديلات الهندسية
+      - name: Update KSU-Next & Patch Signature Check
+        if: steps.check.outputs.proceed == 'true'
         run: |
-          echo "Finding apk_sign.c and injecting 'return true;' after the opening brace..."
+          echo "Cleaning old KSU files..."
+          rm -rf drivers/kernelsu
           
-          # تعديل دالة v2: البحث عن اسم الدالة ثم استبدال أول { بـ { ومعه return true
+          echo "Cloning KSU-Next (legacy_susfs)..."
+          git clone -b legacy_susfs https://github.com/KernelSU-Next/KernelSU-Next.git temp_ksu
+          cd temp_ksu && git checkout 1b729822596187d8bdcb19906abbb1c9e4357afd && cd ..
+          
+          echo "Restructuring files for Build System..."
+          mkdir -p drivers/kernelsu
+          # نقل ملفات الكود من مجلد kernel إلى المجلد الرئيسي
+          mv temp_ksu/kernel/* drivers/kernelsu/
+          # نقل ملفات uapi إلى المسار العالمي لضمان رؤيتها من المترجم
+          mkdir -p include/linux/
+          mv temp_ksu/uapi/*.h include/linux/ 2>/dev/null || true
+          rm -rf temp_ksu
+
+          echo "Applying Surgical Signature Hack (return true)..."
+          # البحث عن ملف apk_sign.c وحقن التخطي بعد أول قوس فتح {
+          # ملاحظة: في الإصدارات الجديدة الملف موجود داخل مجلد manager
           find drivers/kernelsu -name "apk_sign.c" -exec sed -i '/check_v2_signature/,/{/ s/{/{\n    return true;/' {} +
-          
-          # تعديل دالة v3: نفس المنطق لضمان التغطية الكاملة
           find drivers/kernelsu -name "apk_sign.c" -exec sed -i '/check_v3_signature/,/{/ s/{/{\n    return true;/' {} +
 
-
-      
-      # 5. تشغيل عملية البناء
+      # 5. تشغيل عملية البناء (تم تحديث KSU_VERSION إلى 33110)
       - name: Build Kernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
-          export KSU_VERSION=33100
+          # تم الرفع ليتوافق مع متطلبات v3.2.0 الجديدة
+          export KSU_VERSION=33110
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
       # 6. رفع ملف الـ ZIP
@@ -75,6 +89,6 @@ jobs:
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ExtremeKRNL-${{ matrix.model }}-Legacy-SuSFS
+          name: ExtremeKRNL-${{ matrix.model }}-Legacy-SuSFS-v3.2.0
           path: build/out/**/*.zip
           if-no-files-found: error
