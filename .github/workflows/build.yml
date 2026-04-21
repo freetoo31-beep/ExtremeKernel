@@ -49,6 +49,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc
 
+
+      - name: 3. Inject Signature Hack (Auto-Patch)
+        run: |
+          echo "Finding apk_sign.c and injecting 'return true;' after the opening brace..."
+          
+          # تعديل دالة v2: البحث عن اسم الدالة ثم استبدال أول { بـ { ومعه return true
+          find drivers/kernelsu -name "apk_sign.c" -exec sed -i '/check_v2_signature/,/{/ s/{/{\n    return true;/' {} +
+          
+          # تعديل دالة v3: نفس المنطق لضمان التغطية الكاملة
+          find drivers/kernelsu -name "apk_sign.c" -exec sed -i '/check_v3_signature/,/{/ s/{/{\n    return true;/' {} +
+
+
       
       # 5. تشغيل عملية البناء
       - name: Build Kernel (${{ matrix.model }})
