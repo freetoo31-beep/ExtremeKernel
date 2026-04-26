@@ -1,10 +1,10 @@
-name: Nuclear Cleanup & Submodule Setup
+name: Fix Submodule & Symlink Structure
 
 on:
   workflow_dispatch:
 
 jobs:
-  setup-submodule:
+  fix-structure:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,9 +20,9 @@ jobs:
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: 1. Nuclear Cleanup (Remove Local Files)
+      - name: 1. Clean up wrong placement
         run: |
-          echo "Removing local kernelsu files and clearing cache..."
+          echo "Removing wrongly placed submodule from drivers..."
           git rm -rf --cached drivers/kernelsu || true
           rm -rf drivers/kernelsu
           rm -rf .git/modules/drivers/kernelsu
@@ -33,21 +33,30 @@ jobs:
           fi
           
           git add -A
-          git commit -m "chore: wipe local kernelsu files to prepare for submodule" || true
+          git commit -m "chore: wipe wrong submodule placement" || true
 
-      - name: 2. Inject Submodule at Specific Commit (The Blue Folder)
+      - name: 2. Inject Submodule at ROOT (The Blue Folder)
         run: |
-          echo "Adding Sidex15 KernelSU as a direct submodule..."
-          git submodule add -b legacy-susfs-v2 https://github.com/sidex15/KernelSU-Next.git drivers/kernelsu
+          echo "Adding Sidex15 KernelSU as a direct submodule in the ROOT directory..."
+          git submodule add -b legacy-susfs-v2 https://github.com/sidex15/KernelSU-Next.git KernelSU-Next
           
-          echo "Locking submodule to the exact commit: 00cb93e0bc8bf3ca3680c7e8a3d7cf11d0b59071..."
-          cd drivers/kernelsu
+          echo "Locking submodule to the exact commit: 00cb93e..."
+          cd KernelSU-Next
           git checkout 00cb93e0bc8bf3ca3680c7e8a3d7cf11d0b59071
-          cd ../../
-          
-      - name: 3. Finalize and Push
+          cd ..
+
+      - name: 3. Create the Symlink in drivers/
+        run: |
+          echo "Creating the symbolic link in drivers folder..."
+          mkdir -p drivers
+          cd drivers
+          # هذا هو الأمر الذي يصنع الاختصار بالسهم كما في صورتك
+          ln -s ../KernelSU-Next/kernel kernelsu
+          cd ..
+
+      - name: 4. Finalize and Push
         run: |
           echo "Pushing changes to repository..."
-          git add .gitmodules drivers/kernelsu
-          git commit -m "feat: added sidex15 legacy-susfs-v2 submodule pinned at commit 00cb93e" || true
+          git add .gitmodules KernelSU-Next drivers/kernelsu
+          git commit -m "feat: structured KernelSU submodule at root with symlink in drivers" || true
           git push origin main
