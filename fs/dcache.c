@@ -48,6 +48,11 @@
 #include <linux/susfs.h>
 #endif
 
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+extern bool susfs_is_current_proc_umounted(void);
+extern bool susfs_is_inode_sus_path(struct inode *inode);
+#endif
+
 #ifdef CONFIG_KDP_NS
 #include <linux/kdp.h>
 #endif
@@ -2238,15 +2243,15 @@ seqretry:
 				continue;
 		}
 		*seqp = seq;
-		#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 		if (unlikely(susfs_is_current_proc_umounted() && dentry->d_inode && susfs_is_inode_sus_path(dentry->d_inode)))
 			continue;
 #endif
-
 		return dentry;
 	}
 	return NULL;
 }
+
 
 /**
  * d_lookup - search for a dentry
@@ -2320,17 +2325,16 @@ struct dentry *__d_lookup(const struct dentry *parent, const struct qstr *name)
 		if (!d_same_name(dentry, parent, name))
 			goto next;
 
-		/* 🛡️ درع SuSFS: الفحص هنا قبل زيادة العداد وقبل التعيين لضمان التخفي والاستقرار */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 		if (unlikely(susfs_is_current_proc_umounted() && dentry->d_inode && susfs_is_inode_sus_path(dentry->d_inode)))
 			goto next;
 #endif
 
-		/* الآن نزيد العداد لمرة واحدة فقط ونعتمد الملف كـ 'موجود' */
 		dentry->d_lockref.count++;
 		found = dentry;
 		spin_unlock(&dentry->d_lock);
 		break;
+
 next:
 		spin_unlock(&dentry->d_lock);
  	}
@@ -3705,4 +3709,5 @@ void __init vfs_caches_init(void)
 	ns_protect = 1;
 #endif
 }
+
 
