@@ -450,6 +450,15 @@ retry:
 	if (res)
 		goto out;
 
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+	if (unlikely(susfs_is_sus_path(&path))) {
+		path_put(&path);
+		res = -ENOENT;
+		goto out;
+	}
+#endif
+
+
 	inode = d_backing_inode(path.dentry);
 	mnt = path.mnt;
 
@@ -933,6 +942,13 @@ int vfs_open(const struct path *path, struct file *file,
 		return PTR_ERR(dentry);
 
 	file->f_path = *path;
+
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+	if (unlikely(susfs_is_sus_path(path))) {
+		return -ENOENT;
+	}
+#endif
+
 	return do_dentry_open(file, d_backing_inode(dentry), NULL, cred);
 }
 
@@ -1301,4 +1317,5 @@ int stream_open(struct inode *inode, struct file *filp)
 }
 
 EXPORT_SYMBOL(stream_open);
+
 
