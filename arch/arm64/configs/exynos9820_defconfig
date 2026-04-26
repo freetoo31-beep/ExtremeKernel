@@ -6500,10 +6500,21 @@ CONFIG_RTL88XXAU=m
 # 5. اختراق ترددات الراديو وكراجات السيارات
 CONFIG_MEDIA_SDR_SUPPORT=y
 
+
 # ==========================================
-# KernelSU & SusFS (Stealth Engine) Settings
+# KERNELSU-NEXT, OVERLAYFS & SUSFS (LEGACY 4.14)
 # ==========================================
 CONFIG_KSU=y
+# ضروري جداً لربط SuSFS مع نسخة الـ Next
+CONFIG_KSU_SUSFS_FOR_KSU_NEXT=y
+
+# إعدادات الـ OverlayFS (أساسية لعمل موديولات KernelSU)
+CONFIG_OVERLAY_FS=y
+CONFIG_OVERLAY_FS_REDIRECT_DIR=y
+CONFIG_OVERLAY_FS_INDEX=y
+# ميزة خاصة بـ Next لإدارة الطبقات بشكل أفضل
+CONFIG_KSU_OVERLAYFS=y
+
 CONFIG_KSU_SUSFS=y
 CONFIG_KSU_SUSFS_SUS_PATH=y
 CONFIG_KSU_SUSFS_SUS_MOUNT=y
@@ -6515,10 +6526,5 @@ CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
 CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
 CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
 CONFIG_KSU_SUSFS_SUS_MAP=y
-
-# Disable Samsung Knox Security Logs (CRITICAL FOR ROOT!)
-# CONFIG_SEC_SELINUX_DEBUG is not set
-
-
 
 
