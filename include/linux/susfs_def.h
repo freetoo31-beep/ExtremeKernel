@@ -107,4 +107,3 @@ static inline bool susfs_is_current_proc_umounted_app(void) {
 		susfs_is_current_proc_umounted_app()
 
 #endif // #ifndef KSU_SUSFS_DEF_H
-
