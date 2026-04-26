@@ -1,10 +1,10 @@
-name: Nuclear Git Cleanup (Submodule Remover)
+name: Nuclear Cleanup & Submodule Setup
 
 on:
   workflow_dispatch:
 
 jobs:
-  cleanup:
+  setup-submodule:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,24 +20,34 @@ jobs:
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: Nuclear Cleanup Action
+      - name: 1. Nuclear Cleanup (Remove Local Files)
         run: |
-          echo "1. Removing submodule from Git index..."
+          echo "Removing local kernelsu files and clearing cache..."
           git rm -rf --cached drivers/kernelsu || true
-          
-          echo "2. Deleting physical files and symlinks..."
           rm -rf drivers/kernelsu
           rm -rf .git/modules/drivers/kernelsu
           
-          echo "3. Cleaning .gitmodules file..."
           if [ -f .gitmodules ]; then
-            # حذف القسم الخاص بـ kernelsu من ملف الموديولات
             sed -i '/\[submodule "drivers\/kernelsu"\]/,+3d' .gitmodules || true
-            # إذا أصبح الملف فارغاً، احذفه تماماً
             [ -s .gitmodules ] || rm .gitmodules
           fi
-
-          echo "4. Finalizing changes..."
+          
           git add -A
-          git commit -m "NUCLEAR CLEANUP: Removed all gitlinks and submodules for kernelsu" || true
+          git commit -m "chore: wipe local kernelsu files to prepare for submodule" || true
+
+      - name: 2. Inject Submodule at Specific Commit (The Blue Folder)
+        run: |
+          echo "Adding Sidex15 KernelSU as a direct submodule..."
+          git submodule add -b legacy-susfs-v2 https://github.com/sidex15/KernelSU-Next.git drivers/kernelsu
+          
+          echo "Locking submodule to the exact commit: 00cb93e0bc8bf3ca3680c7e8a3d7cf11d0b59071..."
+          cd drivers/kernelsu
+          git checkout 00cb93e0bc8bf3ca3680c7e8a3d7cf11d0b59071
+          cd ../../
+          
+      - name: 3. Finalize and Push
+        run: |
+          echo "Pushing changes to repository..."
+          git add .gitmodules drivers/kernelsu
+          git commit -m "feat: added sidex15 legacy-susfs-v2 submodule pinned at commit 00cb93e" || true
           git push origin main
