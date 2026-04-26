@@ -59,4 +59,4 @@ jobs:
           echo "Pushing changes to repository..."
           git add .gitmodules KernelSU-Next drivers/kernelsu
           git commit -m "feat: structured KernelSU submodule at root with symlink in drivers" || true
-          git push origin main
+          git push origin Susfs.2.10
