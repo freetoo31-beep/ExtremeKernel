@@ -1,10 +1,10 @@
-name: Update KSU-Next (Physical Files & Patch)
+name: Fix Submodule & Symlink Structure
 
 on:
   workflow_dispatch:
 
 jobs:
-  update_ksu_and_patch:
+  fix-structure:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,48 +20,43 @@ jobs:
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: 1. Nuclear Cleanup (Remove Submodule)
+      - name: 1. Clean up wrong placement
         run: |
-          echo "Removing submodule from Git index..."
+          echo "Removing wrongly placed submodule from drivers..."
           git rm -rf --cached drivers/kernelsu || true
-          
-          echo "Deleting physical files and symlinks..."
           rm -rf drivers/kernelsu
           rm -rf .git/modules/drivers/kernelsu
           
-          echo "Cleaning .gitmodules file..."
           if [ -f .gitmodules ]; then
             sed -i '/\[submodule "drivers\/kernelsu"\]/,+3d' .gitmodules || true
             [ -s .gitmodules ] || rm .gitmodules
           fi
-
-      - name: 2. Fetch KernelSU-Next (legacy_susfs @ 1b72982)
-        run: |
-          echo "Cloning the legacy_susfs branch..."
-          git clone -b legacy_susfs https://github.com/KernelSU-Next/KernelSU-Next.git temp_ksu
           
-          cd temp_ksu
-          echo "Checking out the specific commit..."
-          git checkout 1b729822596187d8bdcb19906abbb1c9e4357afd
-          
-          echo "Destroying .git folder..."
-          rm -rf .git
-          cd ..
-          
-          echo "Moving ACTUAL driver files from the 'kernel' folder..."
-          mkdir -p drivers/kernelsu
-          
-          # التعديل السحري هنا: نقل محتويات مجلد kernel فقط بدلاً من كل شيء
-          mv temp_ksu/kernel/* drivers/kernelsu/
-          
-          # تنظيف الملفات المؤقتة
-          rm -rf temp_ksu
-
-
-      
-      - name: 4. Finalize, Commit and Push
-        run: |
-          echo "Staging all files..."
           git add -A
-          git commit -m "feat: Replace KSU submodule with physical files (legacy_susfs @ 1b72982) & Auto-Disable APK Sign Check" || echo "No changes to commit"
+          git commit -m "chore: wipe wrong submodule placement" || true
+
+      - name: 2. Inject Submodule at ROOT (The Blue Folder)
+        run: |
+          echo "Adding Sidex15 KernelSU as a direct submodule in the ROOT directory..."
+          git submodule add -b legacy-susfs-v2 https://github.com/sidex15/KernelSU-Next.git KernelSU-Next
+          
+          echo "Locking submodule to the exact commit: 00cb93e..."
+          cd KernelSU-Next
+          git checkout 00cb93e0bc8bf3ca3680c7e8a3d7cf11d0b59071
+          cd ..
+
+      - name: 3. Create the Symlink in drivers/
+        run: |
+          echo "Creating the symbolic link in drivers folder..."
+          mkdir -p drivers
+          cd drivers
+          # هذا هو الأمر الذي يصنع الاختصار بالسهم كما في صورتك
+          ln -s ../KernelSU-Next/kernel kernelsu
+          cd ..
+
+      - name: 4. Finalize and Push
+        run: |
+          echo "Pushing changes to repository..."
+          git add .gitmodules KernelSU-Next drivers/kernelsu
+          git commit -m "feat: structured KernelSU submodule at root with symlink in drivers" || true
           git push origin Mai31
