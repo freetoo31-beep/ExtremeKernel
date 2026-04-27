@@ -13,7 +13,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: Mai31 # التأكد من العمل على الفرع الصحيح
+          ref: Mai31 
           fetch-depth: 0
 
       - name: Set Git identity
@@ -21,53 +21,58 @@ jobs:
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: 1. Deep Clean
+      - name: 1. Nuclear Clean (مسح شامل لكل الأثار القديمة)
         run: |
-          echo "Wiping existing submodule traces..."
+          # إلغاء تسجيل أي Submodule قديم بقوة
+          git submodule deinit -f --all || true
+          
+          # مسح المجلدات والذاكرة المخفية
           git rm -rf --cached drivers/kernelsu || true
           git rm -rf --cached KernelSU-Next || true
-          rm -rf drivers/kernelsu
-          rm -rf KernelSU-Next
           rm -rf .git/modules/drivers/kernelsu || true
           rm -rf .git/modules/KernelSU-Next || true
+          rm -rf drivers/kernelsu
+          rm -rf KernelSU-Next
           rm -f .gitmodules
           
           git add -A
-          git commit -m "chore: full cleanup of submodules before re-injection" || true
+          git commit -m "chore: nuclear cleanup of submodules" || true
 
-      - name: 2. Inject Submodule & Force .gitmodules format
+      - name: 2. Inject Submodule & Force Format
         run: |
-          echo "Adding KernelSU-Next as submodule..."
-          git submodule add -b legacy-susfs-v2 https://github.com/sidex15/KernelSU-Next.git KernelSU-Next
+          # إضافة الـ Submodule مع استخدام --force لتخطي أي قيود
+          git submodule add --force -b legacy-susfs-v2 https://github.com/sidex15/KernelSU-Next.git KernelSU-Next
           
-          echo "Writing .gitmodules precisely as requested..."
-          cat <<EOF > .gitmodules
-[submodule "KernelSU-Next"]
-	path = KernelSU-Next
-	url = https://github.com/sidex15/KernelSU-Next
-	branch = legacy-susfs-v2
-EOF
+          # إعادة كتابة الملف بالشكل الذي طلبته بالضبط
+          echo '[submodule "KernelSU-Next"]' > .gitmodules
+          echo '	path = KernelSU-Next' >> .gitmodules
+          echo '	url = https://github.com/sidex15/KernelSU-Next' >> .gitmodules
+          echo '	branch = legacy-susfs-v2' >> .gitmodules
 
       - name: 3. Lock Submodule to Specific Commit
         run: |
-          echo "Locking to commit 00cb93e..."
           cd KernelSU-Next
           git fetch origin legacy-susfs-v2
           git checkout 00cb93e0bc8bf3ca3680c7e8a3d7cf11d0b59071
           cd ..
+          # تحديث مؤشر الـ Submodule في المستودع الرئيسي
+          git add KernelSU-Next
 
-      - name: 4. Create Symbolic Link in drivers/
+      - name: 4. Create Symbolic Link
         run: |
-          echo "Creating symlink: drivers/kernelsu -> ../KernelSU-Next/kernel"
           mkdir -p drivers
           cd drivers
-          # إنشاء الاختصار الذي يشير لمجلد الكود الفعلي
+          # حذف أي رابط قديم أو مجلد قديم هناك
+          rm -rf kernelsu 
+          # إنشاء الرابط الرمزي
           ln -s ../KernelSU-Next/kernel kernelsu
           cd ..
+          # إضافة الرابط الرمزي يدوياً للتأكد من تسجيله كـ Link وليس كمجلد
+          git add drivers/kernelsu
 
       - name: 5. Finalize and Push to Mai31
         run: |
-          echo "Committing structure changes..."
-          git add .gitmodules KernelSU-Next drivers/kernelsu
+          git add .gitmodules
           git commit -m "feat: structured KernelSU-Next with exact .gitmodules and symlink" || true
-          git push origin Mai31
+          # استخدام --force عند الدفع لضمان تطبيق الهيكلية الجديدة
+          git push origin Mai31 --force
