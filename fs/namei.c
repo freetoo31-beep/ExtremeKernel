@@ -40,12 +40,6 @@
 #include <linux/init_task.h>
 #include <linux/uaccess.h>
 
-/* 🛡️ تعديل مهند: إضافة ملفات الرأس الخاصة بـ SuSFS */
-#if defined(CONFIG_KSU_SUSFS_SUS_PATH) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
-#include <linux/susfs_def.h>
-#include <linux/susfs.h>
-#endif
-
 #ifdef CONFIG_FSCRYPT_SDP
 #include <linux/fscrypto_sdp_name.h>
 #endif
@@ -54,10 +48,7 @@
 #include "mount.h"
 
 #define CREATE_TRACE_POINTS
-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-extern bool susfs_is_inode_sus_path(struct inode *inode);
-extern const struct qstr susfs_fake_qstr_name;
-#endif
+#include <trace/events/namei.h>
 
 /* [Feb-1997 T. Schoebel-Theuer]
  * Fundamental changes in the pathname lookup mechanisms (namei)
@@ -921,15 +912,18 @@ static int complete_walk(struct nameidata *nd)
 	}
 
 	if (likely(!(nd->flags & LOOKUP_JUMPED))) {
+		success_walk_trace(nd);
 		return 0;
 	}
 
 	if (likely(!(dentry->d_flags & DCACHE_OP_WEAK_REVALIDATE))) {
+		success_walk_trace(nd);
 		return 0;
 	}
 
 	status = dentry->d_op->d_weak_revalidate(dentry, nd->flags);
 	if (status > 0) {
+		success_walk_trace(nd);
 		return 0;
 	}
 
@@ -1714,20 +1708,17 @@ retry:
 	struct dentry *dentry = lookup_dcache(name, base, flags);
 #endif
 
-	if (dentry)
+	if (dentry) {
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	{
 		if (!found_sus_path && !IS_ERR(dentry) && dentry->d_inode && susfs_is_inode_sus_path(dentry->d_inode)) {
 			dput(dentry);
 			dentry = lookup_dcache(&susfs_fake_qstr_name, base, flags);
 			found_sus_path = true;
 			goto retry;
 		}
+#endif
 		return dentry;
 	}
-#else
-		return dentry;
-#endif
 
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 	if (found_sus_path) {
@@ -1746,7 +1737,7 @@ skip_orig_flow:
 }
 
 
-	static int lookup_fast(struct nameidata *nd,
+static int lookup_fast(struct nameidata *nd,
 		       struct path *path, struct inode **inode,
 		       unsigned *seqp)
 {
@@ -1755,44 +1746,58 @@ skip_orig_flow:
 	int status = 1;
 	int err;
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	bool is_nd_state_lookup_last_and_open_last = (nd->state & ND_STATE_LOOKUP_LAST || nd->state & ND_STATE_OPEN_LAST);
+	bool is_nd_state_lookup_last_and_open_last = (nd->state & (ND_STATE_LOOKUP_LAST | ND_STATE_OPEN_LAST));
 #endif
 
+	/*
+	 * Rename seqlock is not required here because in the off chance
+	 * of a false negative due to a concurrent rename, the caller is
+	 * going to fall back to non-racy lookup.
+	 */
 	if (nd->flags & LOOKUP_RCU) {
 		unsigned seq;
 		bool negative;
+			dentry = __d_lookup_rcu(parent, &nd->last, &seq);
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-		unsigned backup_next_seq;
-
-	
-#endif
-		dentry = __d_lookup_rcu(parent, &nd->last, &seq);
-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-		if (is_nd_state_lookup_last_and_open_last && dentry && !IS_ERR(dentry) && dentry->d_inode && parent->d_inode) {
-			if (susfs_is_inode_sus_path(dentry->d_inode)) {
-				dput(dentry);
-				dentry = __d_lookup_rcu(parent, &susfs_fake_qstr_name, &backup_next_seq);
-				seq = backup_next_seq;
-			}
+		if (is_nd_state_lookup_last_and_open_last && dentry && !IS_ERR(dentry) && dentry->d_inode && susfs_is_inode_sus_path(dentry->d_inode)) {
+				if (d_in_lookup(dentry))
+					d_lookup_done(dentry);
+				dentry = NULL;
 		}
-		
 #endif
 		if (unlikely(!dentry)) {
 			if (unlazy_walk(nd))
+
 				return -ECHILD;
 			return 0;
 		}
 
+		/*
+		 * This sequence count validates that the inode matches
+		 * the dentry name information from lookup.
+		 */
 		*inode = d_backing_inode(dentry);
 		negative = d_is_negative(dentry);
 		if (unlikely(read_seqcount_retry(&dentry->d_seq, seq)))
 			return -ECHILD;
+
+		/*
+		 * This sequence count validates that the parent had no
+		 * changes while we did the lookup of the dentry above.
+		 *
+		 * The memory barrier in read_seqcount_begin of child is
+		 *  enough, we can use __read_seqcount_retry here.
+		 */
 		if (unlikely(__read_seqcount_retry(&parent->d_seq, nd->seq)))
 			return -ECHILD;
 
 		*seqp = seq;
 		status = d_revalidate(dentry, nd->flags);
 		if (likely(status > 0)) {
+			/*
+			 * Note: do negative dentry check after revalidation in
+			 * case that drops it.
+			 */
 			if (unlikely(negative))
 				return -ENOENT;
 			path->mnt = mnt;
@@ -1803,35 +1808,21 @@ skip_orig_flow:
 		if (unlazy_child(nd, dentry, seq))
 			return -ECHILD;
 		if (unlikely(status == -ECHILD))
+			/* we'd been told to redo it in non-rcu mode */
 			status = d_revalidate(dentry, nd->flags);
-	} else {
-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-		if (is_nd_state_lookup_last_and_open_last && parent->d_inode) {
-			if (susfs_is_base_dentry_android_data_dir(parent) &&
-				susfs_is_sus_android_data_d_name_found(nd->last.name))
-			{
-				dentry = __d_lookup(parent, &susfs_fake_qstr_name);
-				goto skip_orig_flow2;
-			} else if (susfs_is_base_dentry_sdcard_dir(parent) &&
-					   susfs_is_sus_sdcard_d_name_found(nd->last.name))
-			{
-				dentry = __d_lookup(parent, &susfs_fake_qstr_name);
-				goto skip_orig_flow2;
-			}
-		}
-#endif
+		} else {
 		dentry = __d_lookup(parent, &nd->last);
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-		if (is_nd_state_lookup_last_and_open_last && dentry && !IS_ERR(dentry) && dentry->d_inode && parent->d_inode) {
-			if (susfs_is_inode_sus_path(dentry->d_inode)) {
+		if (is_nd_state_lookup_last_and_open_last && dentry && !IS_ERR(dentry) && dentry->d_inode && susfs_is_inode_sus_path(dentry->d_inode)) {
+				if (d_in_lookup(dentry))
+					d_lookup_done(dentry);
 				dput(dentry);
-				dentry = __d_lookup(parent, &susfs_fake_qstr_name);
-			}
+				dentry = NULL;
 		}
-		
 #endif
 		if (unlikely(!dentry))
 			return 0;
+
 		status = d_revalidate(dentry, nd->flags);
 	}
 	if (unlikely(status <= 0)) {
@@ -1853,7 +1844,6 @@ skip_orig_flow:
 	return err;
 }
 
-
 /* Fast lookup failed, do it the slow way */
 static struct dentry *lookup_slow(const struct qstr *name,
 				  struct dentry *dir,
@@ -1863,18 +1853,18 @@ static struct dentry *lookup_slow(const struct qstr *name,
 	struct inode *inode = dir->d_inode;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(sus_wq);
 	bool found_sus_path = false;
 	bool is_nd_flags_lookup_last = (flags & ND_FLAGS_LOOKUP_LAST);
 #endif
 
 	inode_lock_shared(inode);
+	/* Don't go there if it's already dead */
 	if (unlikely(IS_DEADDIR(inode)))
 		goto out;
 again:
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 	if (found_sus_path) {
-		dentry = d_alloc_parallel(dir, &susfs_fake_qstr_name, &sus_wq);
+		dentry = d_alloc_parallel(dir, &susfs_fake_qstr_name, &wq);
 		goto retry;
 	}
 #endif
@@ -1891,6 +1881,12 @@ retry:
 				if (!error) {
 					d_invalidate(dentry);
 					dput(dentry);
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+					if (found_sus_path) {
+						dentry = d_alloc_parallel(dir, &susfs_fake_qstr_name, &wq);
+						goto retry;
+					}
+#endif
 					goto again;
 				}
 				dput(dentry);
@@ -1906,21 +1902,24 @@ retry:
 		}
 	}
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (is_nd_flags_lookup_last && !found_sus_path) {
-		if (dentry && !IS_ERR(dentry) && dentry->d_inode) {
-			if (susfs_is_inode_sus_path(dentry->d_inode)) {
-				dput(dentry);
-				dentry = d_alloc_parallel(dir, &susfs_fake_qstr_name, &sus_wq);
-				found_sus_path = true;
-				goto retry;
-			}
-		}
+	if (is_nd_flags_lookup_last && !found_sus_path && dentry && !IS_ERR(dentry) && dentry->d_inode &&
+		susfs_is_inode_sus_path(dentry->d_inode))
+	{
+		if (d_in_lookup(dentry))
+			d_lookup_done(dentry);
+		if (!(flags & LOOKUP_RCU))
+			dput(dentry);
+		dentry = d_alloc_parallel(dir, &susfs_fake_qstr_name, &wq);
+		found_sus_path = true;
+		goto retry;
 	}
 #endif
 out:
 	inode_unlock_shared(inode);
 	return dentry;
 }
+
+
 static inline int may_lookup(struct nameidata *nd)
 {
 	if (nd->flags & LOOKUP_RCU) {
@@ -2023,7 +2022,11 @@ static int walk_component(struct nameidata *nd, int flags)
 	struct inode *inode;
 	unsigned seq;
 	int err;
-
+	/*
+	 * "." and ".." are special - ".." especially so because it has
+	 * to be able to know about the current root directory and
+	 * parent relationships.
+	 */
 	if (unlikely(nd->last_type != LAST_NORM)) {
 		err = handle_dots(nd, nd->last_type);
 		if (!(flags & WALK_MORE) && nd->depth)
@@ -2034,14 +2037,17 @@ static int walk_component(struct nameidata *nd, int flags)
 	if (unlikely(err <= 0)) {
 		if (err < 0)
 			return err;
+/* 🛡️ التعديل المفقود لتمرير حالة الإخفاء */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 		if (nd->state & ND_STATE_LOOKUP_LAST) {
 			nd->flags |= ND_FLAGS_LOOKUP_LAST;
 		}
 #endif
-		path.dentry = lookup_slow(&nd->last, nd->path.dentry, nd->flags);
+		path.dentry = lookup_slow(&nd->last, nd->path.dentry,
+					  nd->flags);
 		if (IS_ERR(path.dentry))
 			return PTR_ERR(path.dentry);
+
 
 		path.mnt = nd->path.mnt;
 		err = follow_managed(&path, nd);
@@ -2053,7 +2059,7 @@ static int walk_component(struct nameidata *nd, int flags)
 			return -ENOENT;
 		}
 
-		seq = 0;
+		seq = 0;	/* we are already out of RCU mode */
 		inode = d_backing_inode(path.dentry);
 	}
 
@@ -2305,8 +2311,9 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 	if (!*name)
 		return 0;
 
+	/* At this point we know we have a real path component. */
 	for(;;) {
-		u64 hash_len;
+				u64 hash_len;
 		int type;
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 		struct dentry *dentry;
@@ -2315,6 +2322,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		err = may_lookup(nd);
 		if (err)
 			return err;
+
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 		dentry = nd->path.dentry;
 		if (dentry->d_inode && susfs_is_inode_sus_path(dentry->d_inode)) {
@@ -2323,6 +2331,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 #endif
 
 		hash_len = hash_name(nd->path.dentry, name);
+
 
 		type = LAST_NORM;
 		if (name[0] == '.') switch (hashlen_len(hash_len)) {
@@ -2355,18 +2364,26 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		name += hashlen_len(hash_len);
 		if (!*name)
 			goto OK;
+		/*
+		 * If it wasn't NUL, we know it was '/'. Skip that
+		 * slash, and continue until no more slashes.
+		 */
 		do {
 			name++;
 		} while (unlikely(*name == '/'));
 		if (unlikely(!*name)) {
 OK:
+			/* pathname body, done */
 			if (!nd->depth)
 				return 0;
 			name = nd->stack[nd->depth - 1].name;
+			/* trailing symlink, done */
 			if (!name)
 				return 0;
+			/* last component of nested symlink */
 			err = walk_component(nd, WALK_FOLLOW);
 		} else {
+			/* not the last component */
 			err = walk_component(nd, WALK_FOLLOW | WALK_MORE);
 		}
 		if (err < 0)
@@ -2379,6 +2396,7 @@ OK:
 				return PTR_ERR(s);
 			err = 0;
 			if (unlikely(!s)) {
+				/* jumped */
 				put_link(nd);
 			} else {
 				nd->stack[nd->depth - 1].name = name;
@@ -2395,7 +2413,6 @@ OK:
 		}
 	}
 }
-
 
 static const char *path_init(struct nameidata *nd, unsigned flags)
 {
@@ -3394,7 +3411,7 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 	struct inode *dir_inode = dir->d_inode;
 	int open_flag = op->open_flag;
 	struct dentry *dentry;
-	int error, create_error = 0;
+		int error, create_error = 0;
 	umode_t mode = op->mode;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
@@ -3403,39 +3420,40 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 #endif
 
 	if (unlikely(IS_DEADDIR(dir_inode)))
+
 		return -ENOENT;
 
-	*opened &= ~FILE_CREATED;
-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-#endif
+		*opened &= ~FILE_CREATED;
 	dentry = d_lookup(dir, &nd->last);
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (is_nd_state_open_last && dentry && !IS_ERR(dentry) && dentry->d_inode) {
-		if (susfs_is_inode_sus_path(dentry->d_inode)) {
-			dput(dentry);
-			dentry = d_lookup(dir, &susfs_fake_qstr_name);
-			found_sus_path = true;
-		}
+	if (is_nd_state_open_last && dentry && !IS_ERR(dentry) && dentry->d_inode &&
+		susfs_is_inode_sus_path(dentry->d_inode))
+	{
+		if (d_in_lookup(dentry))
+			d_lookup_done(dentry);
+		dput(dentry);
+		dentry = NULL;
+		found_sus_path = true;
 	}
-	
 #endif
 	for (;;) {
 		if (!dentry) {
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 			if (found_sus_path) {
 				dentry = d_alloc_parallel(dir, &susfs_fake_qstr_name, &wq);
-				goto skip_orig_flow2;
+				goto skip_orig_flow;
 			}
 #endif
 			dentry = d_alloc_parallel(dir, &nd->last, &wq);
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-skip_orig_flow2:
+skip_orig_flow:
 #endif
 			if (IS_ERR(dentry))
 				return PTR_ERR(dentry);
 		}
 		if (d_in_lookup(dentry))
 			break;
+
 
 		error = d_revalidate(dentry, nd->flags);
 		if (likely(error > 0))
@@ -3447,9 +3465,19 @@ skip_orig_flow2:
 		dentry = NULL;
 	}
 	if (dentry->d_inode) {
+		/* Cached positive dentry: will open in f_op->open */
 		goto out_no_open;
 	}
 
+	/*
+	 * Checking write permission is tricky, bacuse we don't know if we are
+	 * going to actually need it: O_CREAT opens should work as long as the
+	 * file exists.  But checking existence breaks atomicity.  The trick is
+	 * to check access and if not granted clear O_CREAT from the flags.
+	 *
+	 * Another problem is returing the "right" error value (e.g. for an
+	 * O_EXCL open we want to return EEXIST not EROFS).
+	 */
 	if (open_flag & O_CREAT) {
 		if (!IS_POSIXACL(dir->d_inode))
 			mode &= ~current_umask();
@@ -3458,6 +3486,7 @@ skip_orig_flow2:
 			open_flag &= ~O_CREAT;
 			if (open_flag & (O_EXCL | O_TRUNC))
 				goto no_open;
+			/* No side effects, safe to clear O_CREAT */
 		} else {
 			create_error = may_o_create(&nd->path, dentry, mode);
 			if (create_error) {
@@ -3468,6 +3497,10 @@ skip_orig_flow2:
 		}
 	} else if ((open_flag & (O_TRUNC|O_WRONLY|O_RDWR)) &&
 		   unlikely(!got_write)) {
+		/*
+		 * No O_CREATE -> atomicity not a requirement -> fall
+		 * back to lookup + open
+		 */
 		goto no_open;
 	}
 
@@ -3494,6 +3527,7 @@ no_open:
 		}
 	}
 
+	/* Negative dentry, just create the file */
 	if (!dentry->d_inode && (open_flag & O_CREAT)) {
 		*opened |= FILE_CREATED;
 		audit_inode_child(dir_inode, dentry, AUDIT_TYPE_CHILD_CREATE);
@@ -3536,15 +3570,16 @@ static int do_last(struct nameidata *nd,
 	bool got_write = false;
 	int acc_mode = op->acc_mode;
 	unsigned seq;
-	struct inode *inode;
+		struct inode *inode;
 	struct path path;
 	int error;
 
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+	nd->state |= ND_STATE_OPEN_LAST;
+#endif
 	nd->flags &= ~LOOKUP_PARENT;
 	nd->flags |= op->intent;
-    #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	nd->state |= ND_STATE_OPEN_LAST;
-    #endif
+
 
 	if (nd->last_type != LAST_NORM) {
 		error = handle_dots(nd, nd->last_type);
@@ -3861,7 +3896,22 @@ out2:
 	return file;
 }
 
+struct file *do_filp_open(int dfd, struct filename *pathname,
+		const struct open_flags *op)
+{
+	struct nameidata nd;
+	int flags = op->lookup_flags;
+	struct file *filp;
 
+	set_nameidata(&nd, dfd, pathname);
+	filp = path_openat(&nd, op, flags | LOOKUP_RCU);
+	if (unlikely(filp == ERR_PTR(-ECHILD)))
+		filp = path_openat(&nd, op, flags);
+	if (unlikely(filp == ERR_PTR(-ESTALE)))
+		filp = path_openat(&nd, op, flags | LOOKUP_REVAL);
+	restore_nameidata();
+	return filp;
+}
 
 struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 		const char *name, const struct open_flags *op)
@@ -5074,7 +5124,6 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
 	struct inode *inode = d_inode(dentry);
 
-/* 🛡️ درع SuSFS: منع قراءة الروابط الرمزية للملفات المخفية عن التطبيقات المعزولة */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 	if (unlikely(susfs_is_current_proc_umounted() && susfs_is_inode_sus_path(inode)))
 		return -ENOENT;
@@ -5095,7 +5144,6 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 	return generic_readlink(dentry, buffer, buflen);
 }
 EXPORT_SYMBOL(vfs_readlink);
-
 
 /**
  * vfs_get_link - get symlink body
