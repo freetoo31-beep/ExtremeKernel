@@ -451,7 +451,7 @@ retry:
 		goto out;
 
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_sus_path(&path))) {
+	if (unlikely(susfs_is_inode_sus_path(&path))) {
 		path_put(&path);
 		res = -ENOENT;
 		goto out;
@@ -944,7 +944,7 @@ int vfs_open(const struct path *path, struct file *file,
 	file->f_path = *path;
 
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
-	if (unlikely(susfs_is_sus_path(path))) {
+	if (unlikely(susfs_is_inode_sus_path(path))) {
 		return -ENOENT;
 	}
 #endif
@@ -1317,5 +1317,4 @@ int stream_open(struct inode *inode, struct file *filp)
 }
 
 EXPORT_SYMBOL(stream_open);
-
 
