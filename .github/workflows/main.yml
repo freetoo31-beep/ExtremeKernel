@@ -41,19 +41,20 @@ jobs:
       - name: 2. Inject Submodule & Force Format
         run: |
           # إضافة الـ Submodule مع استخدام --force لتخطي أي قيود
-          git submodule add --force -b legacy-susfs-v2 https://github.com/sidex15/KernelSU-Next.git KernelSU-Next
+          git submodule add --force -b legacy-susfs https://github.com/KernelSU-Next/KernelSU-Next.git KernelSU-Next
           
           # إعادة كتابة الملف بالشكل الذي طلبته بالضبط
           echo '[submodule "KernelSU-Next"]' > .gitmodules
           echo '	path = KernelSU-Next' >> .gitmodules
-          echo '	url = https://github.com/sidex15/KernelSU-Next' >> .gitmodules
-          echo '	branch = legacy-susfs-v2' >> .gitmodules
+          echo '	url = https://github.com/KernelSU-Next/KernelSU-Next' >> .gitmodules
+          echo '	branch = legacy-susfs' >> .gitmodules
 
       - name: 3. Lock Submodule to Specific Commit
         run: |
           cd KernelSU-Next
-          git fetch origin legacy-susfs-v2
-          git checkout 00cb93e0bc8bf3ca3680c7e8a3d7cf11d0b59071
+          git fetch origin legacy-susfs
+          # الانتقال للالتزام (Commit) الجديد الخاص بالمستودع الرسمي
+          git checkout 4cc162e027cc36f8e4d4e6a554e9aa07cac4d4f0
           cd ..
           # تحديث مؤشر الـ Submodule في المستودع الرئيسي
           git add KernelSU-Next
@@ -73,6 +74,6 @@ jobs:
       - name: 5. Finalize and Push to Mai31
         run: |
           git add .gitmodules
-          git commit -m "feat: structured KernelSU-Next with exact .gitmodules and symlink" || true
+          git commit -m "feat: switch to official KernelSU-Next legacy-susfs branch at specific commit" || true
           # استخدام --force عند الدفع لضمان تطبيق الهيكلية الجديدة
           git push origin Mai31 --force
