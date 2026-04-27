@@ -40,10 +40,11 @@
 #endif
 // ] SEC_SELINUX_PORTING_COMMON
 
-/* SuSFS: استدعاء ملف التعريفات للإخفاء */
 #ifdef CONFIG_KSU_SUSFS
 #include <linux/susfs_def.h>
+bool susfs_is_avc_log_spoofing_enabled = true;  // <--- هذا هو السطر السحري الذي أضفناه
 #endif
+
 
 #define AVC_CACHE_SLOTS			512
 #define AVC_DEF_CACHE_THRESHOLD		512
