@@ -25,7 +25,7 @@ jobs:
         model: [d1, d1xks, d2s, d2x, d2xks]
 
     steps:
-      # 1. التحقق من الموديل
+      # 1. التحقق من الموديل المطلوب بناءً على اختيار المستخدم
       - name: Check if build is needed
         id: check
         run: |
@@ -35,51 +35,67 @@ jobs:
             echo "proceed=false" >> $GITHUB_OUTPUT
           fi
 
-      # 2. تحميل كود الكيرنل (مع السحب التلقائي للـ Submodules)
+      # 2. تحميل كود الكيرنل وجلب الـ Submodules (الروت)
       - name: Checkout Kernel Source
         if: steps.check.outputs.proceed == 'true'
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           submodules: 'recursive'
 
-      # 3. تثبيت أدوات البناء
+      # 3. إجبار السحب من فرع Legacy SuSFS والالتزام المطلوب (لحل مشكلة النسخة القديمة)
+      - name: Force KernelSU-Next Legacy Branch
+        if: steps.check.outputs.proceed == 'true'
+        run: |
+          echo "🛠️ Fixing Submodule Branch and Commit..."
+          # الدخول لمجلد الروت والتأكد من الوقوف على الالتزام الصحيح لـ SuSFS v2
+          cd KernelSU-Next
+          git fetch origin legacy-susfs-v2
+          git checkout 00cb93e0bc8bf3ca3680c7e8a3d7cf11d0b59071
+          cd ..
+          echo "✅ Submodule is now on the correct Legacy Commit!"
+
+      # 4. تثبيت أدوات البناء الضرورية
       - name: Install Dependencies
         if: steps.check.outputs.proceed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc jq
 
-      # 4. تعديل رقم الإصدار داخل كود الروت (حل مشكلة المربع الأحمر)
+      # 5. تعديل رقم الإصدار (33129) ليتوافق مع المدير ويختفي المربع الأحمر
       - name: Patch KernelSU Version
         if: steps.check.outputs.proceed == 'true'
         run: |
-          echo "🛠️ Patching ksu.h at Kernel/include/ksu.h..."
-          # المسار الجديد الذي حددته أنت
-          KSU_H="Kernel/include/ksu.h"
+          echo "🔍 Searching for ksu.h and patching version to 33129..."
           
-          if [ -f "$KSU_H" ]; then
-            # تحديث رقم الإصدار إلى 33129 ليتوافق مع المدير
-            sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33129/g' $KSU_H
-            echo "✅ ksu.h patched successfully with version 33129!"
+          # البحث التلقائي عن الملف داخل مجلد KernelSU-Next لتجنب أخطاء المسارات
+          KSU_H_PATH=$(find . -name "ksu.h" | grep "KernelSU-Next" | grep "include" | head -n 1)
+
+          if [ -n "$KSU_H_PATH" ]; then
+            echo "✅ Found ksu.h at: $KSU_H_PATH"
+            # تغيير رقم الإصدار برمجياً
+            sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33129/g' "$KSU_H_PATH"
+            echo "🚀 Patched KSU_VERSION to 33129 successfully!"
           else
-            echo "❌ Error: ksu.h not found at $KSU_H! Build will stop to prevent version mismatch."
+            echo "❌ Error: ksu.h not found! Checking directory structure..."
+            ls -R KernelSU-Next/kernel/include/ || echo "Structure not found"
             exit 1
           fi
           
-          # حفظ المتغيرات لاستخدامها في تسمية الملف النهائي
+          # حفظ البيانات لتسمية الملف النهائي
           echo "KSU_VERSION=33129" >> $GITHUB_ENV
           echo "KSU_NAME=Legacy-SuSFS" >> $GITHUB_ENV
 
-      # 5. تشغيل عملية البناء
+      # 6. تشغيل عملية بناء الكيرنل
       - name: Build Kernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
-          echo "🚀 Building ExtremeKRNL with patched KSU Version: ${{ env.KSU_VERSION }}"
+          echo "🚀 Building ExtremeKRNL with patched version: ${{ env.KSU_VERSION }}"
+          # تمرير الأوامر التلقائية للسكربت
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      # 6. رفع ملف الـ ZIP النهائي
+      # 7. رفع ملف الـ ZIP المطبوع بنجاح
       - name: Upload Kernel Artifact
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
