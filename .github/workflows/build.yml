@@ -1,4 +1,4 @@
-name: ExtremeKernel - Official Legacy SuSFS Edition
+name: ExtremeKernel - Official Raw SuSFS (Samsung Fixed)
 
 on:
   workflow_dispatch:
@@ -25,7 +25,6 @@ jobs:
         model: [d1, d1xks, d2s, d2x, d2xks]
 
     steps:
-      # 1. التحقق من الموديل المطلوب بناءً على اختيار المستخدم
       - name: Check if build is needed
         id: check
         run: |
@@ -35,73 +34,81 @@ jobs:
             echo "proceed=false" >> $GITHUB_OUTPUT
           fi
 
-      # 2. تحميل كود الكيرنل الأساسي
       - name: Checkout Kernel Source
         if: steps.check.outputs.proceed == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: 'recursive'
+          token: ${{ secrets.GH_PAT }}
 
-      # 3. سحب الفرع الرسمي الجديد (legacy-susfs) والالتزام المحدد
-      - name: Fetch Official KernelSU-Next Legacy Branch
+      - name: 1. Fetch RAW Official KernelSU-Next
         if: steps.check.outputs.proceed == 'true'
         run: |
-          echo "🛠️ Fetching Official KernelSU-Next Submodule..."
-          # مسح المجلد القديم إن وجد لضمان نظافة السحب وعدم تداخل الأكواد
+          echo "🛠️ Fetching Official RAW KernelSU-Next Submodule..."
           rm -rf KernelSU-Next
           
-          # استنساخ المستودع الرسمي مباشرة على الفرع الجديد
+          # استنساخ المستودع الرسمي الخام
           git clone -b legacy-susfs https://github.com/KernelSU-Next/KernelSU-Next.git KernelSU-Next
           
-          # الدخول للمجلد وتثبيت الكود على الالتزام (Commit) المطلوب
+          # قفل الكود على التحديث المستقر
           cd KernelSU-Next
           git checkout 4cc162e027cc36f8e4d4e6a554e9aa07cac4d4f0
           cd ..
           
-          echo "✅ Successfully switched to Official legacy-susfs branch at commit 4cc162e!"
+          echo "✅ Successfully fetched Official RAW branch!"
 
-      # 4. تثبيت أدوات البناء الضرورية
       - name: Install Dependencies
         if: steps.check.outputs.proceed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc jq
 
-      # 5. تعديل رقم الإصدار (33129) ليتوافق مع المدير ويختفي المربع الأحمر
-      - name: Patch KernelSU Version
+      - name: 2. Magic Conflict Fixes & Samsung Bypasses
         if: steps.check.outputs.proceed == 'true'
         run: |
-          echo "🔍 Searching for ksu.h and patching version to 33129..."
+          echo "🔍 Fixing API Conflicts and applying Samsung patches..."
           
-          # البحث التلقائي عن الملف داخل مجلد KernelSU-Next لتجنب أخطاء المسارات
-          KSU_H_PATH=$(find . -name "ksu.h" | grep "KernelSU-Next" | grep "include" | head -n 1)
-
-          if [ -n "$KSU_H_PATH" ]; then
-            echo "✅ Found ksu.h at: $KSU_H_PATH"
-            # تغيير رقم الإصدار برمجياً
-            sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33129/g' "$KSU_H_PATH"
-            echo "🚀 Patched KSU_VERSION to 33129 successfully!"
-          else
-            echo "❌ Error: ksu.h not found! Checking directory structure..."
-            ls -R KernelSU-Next/kernel/include/ || echo "Structure not found"
-            exit 1
+          # أ- حل مشكلة تعارض SuSFS بين النواة والروت الرسمي
+          if [ -f "include/linux/susfs.h" ]; then
+            sed -i 's/void susfs_add_try_umount(void __user \*\*user_info)/int susfs_add_try_umount(void __user \*arg)/g' include/linux/susfs.h
+            echo "✅ Fixed susfs_add_try_umount in header"
           fi
           
-          # حفظ البيانات لتسمية الملف النهائي
-          echo "KSU_VERSION=33129" >> $GITHUB_ENV
-          echo "KSU_NAME=Official-Legacy-SuSFS" >> $GITHUB_ENV
+          if [ -f "fs/susfs.c" ]; then
+            sed -i 's/void susfs_add_try_umount(void __user \*\*user_info)/int susfs_add_try_umount(void __user \*arg)/g' fs/susfs.c
+            echo "✅ Fixed susfs_add_try_umount in C file"
+          fi
 
-      # 6. تشغيل عملية بناء الكيرنل
+          # ب- تغيير رقم الإصدار ليتوافق مع المدير 3.2.0 (إخفاء المربع الأحمر)
+          KSU_H_PATH=$(find KernelSU-Next -name "ksu.h" | grep "include" | head -n 1)
+          if [ -n "$KSU_H_PATH" ]; then
+            sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33129/g' "$KSU_H_PATH"
+            echo "✅ Patched Manager Version to 33129"
+          fi
+
+          # ج- إصلاح مشكلة التعليق والجمود عند التثبيت
+          if [ -f "KernelSU-Next/kernel/ksu_lsm_hooks.c" ]; then
+            sed -i 's/LSM_HOOK_INIT(inode_rename, ksu_inode_rename),/\/\/ LSM_HOOK_INIT(inode_rename, ksu_inode_rename),/g' KernelSU-Next/kernel/ksu_lsm_hooks.c
+            echo "✅ Disabled inode_rename hook (Fixes Installation Freeze)"
+          fi
+
+          # د- إصلاح مشكلة الـ Reboot عند فتح التطبيق على Samsung
+          if [ -f "KernelSU-Next/kernel/setuid_hook.c" ]; then
+            sed -i 's/disable_seccomp(current);/\/\/ disable_seccomp(current);/g' KernelSU-Next/kernel/setuid_hook.c
+            echo "✅ Disabled seccomp bypass (Fixes App Opening Reboot)"
+          fi
+
+          echo "KSU_VERSION=33129" >> $GITHUB_ENV
+          echo "KSU_NAME=Official-RAW-SuSFS" >> $GITHUB_ENV
+
       - name: Build Kernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
-          echo "🚀 Building ExtremeKRNL with patched version: ${{ env.KSU_VERSION }}"
-          # تمرير الأوامر التلقائية للسكربت
+          echo "🚀 Building ExtremeKRNL..."
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      # 7. رفع ملف الـ ZIP المطبوع بنجاح
       - name: Upload Kernel Artifact
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
@@ -109,3 +116,4 @@ jobs:
           name: ExtremeKRNL-${{ matrix.model }}-${{ env.KSU_NAME }}-v${{ env.KSU_VERSION }}
           path: build/out/**/*.zip
           if-no-files-found: error
+
