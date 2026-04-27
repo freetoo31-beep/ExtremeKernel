@@ -76,4 +76,4 @@ jobs:
           git add .gitmodules
           git commit -m "feat: switch to official KernelSU-Next legacy-susfs branch at specific commit" || true
           # استخدام --force عند الدفع لضمان تطبيق الهيكلية الجديدة
-          git push origin Mai31 --force
+          git push origin Mai31 
