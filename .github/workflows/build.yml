@@ -35,13 +35,13 @@ jobs:
             echo "proceed=false" >> $GITHUB_OUTPUT
           fi
 
-      # 2. تحميل كود الكيرنل (وسحب الروت من روابط الـ Submodule)
+      # 2. تحميل كود الكيرنل (مع السحب التلقائي للـ Submodules)
       - name: Checkout Kernel Source
         if: steps.check.outputs.proceed == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          submodules: 'recursive' # <--- هذا السطر يسحب الروت تلقائياً من المستودع
+          submodules: 'recursive'
 
       # 3. تثبيت أدوات البناء
       - name: Install Dependencies
@@ -50,37 +50,40 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libssl-dev bc jq
 
-      # 4. جلب رقم إصدار الروت (KernelSU-Next) ديناميكياً
-      - name: Fetch KernelSU Version
+      # 4. تعديل رقم الإصدار داخل كود الروت (حل مشكلة المربع الأحمر)
+      - name: Patch KernelSU Version
         if: steps.check.outputs.proceed == 'true'
         run: |
-          echo "🔍 Fetching latest KernelSU-Next version from GitHub..."
-          LATEST_KSU_VERSION=$(curl -s "https://api.github.com/repos/KernelSU-Next/KernelSU-Next/releases/latest" | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+          echo "🛠️ Patching ksu.h at Kernel/include/ksu.h..."
+          # المسار الجديد الذي حددته أنت
+          KSU_H="Kernel/include/ksu.h"
           
-          # إذا فشل في جلب الإصدار لأي سبب، نضع رقماً افتراضياً لمنع توقف البناء
-          if [ -z "$LATEST_KSU_VERSION" ]; then
-            echo "⚠️ Could not fetch version, using fallback."
-            LATEST_KSU_VERSION="v1.0.5"
+          if [ -f "$KSU_H" ]; then
+            # تحديث رقم الإصدار إلى 33129 ليتوافق مع المدير
+            sed -i 's/#define KSU_VERSION .*/#define KSU_VERSION 33129/g' $KSU_H
+            echo "✅ ksu.h patched successfully with version 33129!"
+          else
+            echo "❌ Error: ksu.h not found at $KSU_H! Build will stop to prevent version mismatch."
+            exit 1
           fi
           
-          echo "✅ Detected KernelSU Version: $LATEST_KSU_VERSION"
-          # حفظ الرقم في متغير البيئة ليتم استخدامه في الخطوات القادمة
-          echo "KSU_VERSION=$LATEST_KSU_VERSION" >> $GITHUB_ENV
+          # حفظ المتغيرات لاستخدامها في تسمية الملف النهائي
+          echo "KSU_VERSION=33129" >> $GITHUB_ENV
+          echo "KSU_NAME=Legacy-SuSFS" >> $GITHUB_ENV
 
       # 5. تشغيل عملية البناء
       - name: Build Kernel (${{ matrix.model }})
         if: steps.check.outputs.proceed == 'true'
         run: |
           chmod +x workflows.sh
-          echo "🚀 Building ExtremeKRNL with KSU Version: $KSU_VERSION"
-          # سيقوم السكربت بوراثة KSU_VERSION تلقائياً
+          echo "🚀 Building ExtremeKRNL with patched KSU Version: ${{ env.KSU_VERSION }}"
           yes "" | ./workflows.sh -m ${{ matrix.model }} -k Y -r N
 
-      # 6. رفع ملف الـ ZIP (مع إضافة رقم الإصدار في الاسم)
+      # 6. رفع ملف الـ ZIP النهائي
       - name: Upload Kernel Artifact
         if: steps.check.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ExtremeKRNL-${{ matrix.model }}-Legacy-SuSFS-${{ env.KSU_VERSION }}
+          name: ExtremeKRNL-${{ matrix.model }}-${{ env.KSU_NAME }}-v${{ env.KSU_VERSION }}
           path: build/out/**/*.zip
           if-no-files-found: error
