@@ -13,6 +13,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: Mai31 # التأكد من العمل على الفرع الصحيح
           fetch-depth: 0
 
       - name: Set Git identity
@@ -20,43 +21,53 @@ jobs:
           git config user.name "Devandroid-bit"
           git config user.email "samirmami533@gmail.com"
 
-      - name: 1. Clean up wrong placement
+      - name: 1. Deep Clean
         run: |
-          echo "Removing wrongly placed submodule from drivers..."
+          echo "Wiping existing submodule traces..."
           git rm -rf --cached drivers/kernelsu || true
+          git rm -rf --cached KernelSU-Next || true
           rm -rf drivers/kernelsu
-          rm -rf .git/modules/drivers/kernelsu
-          
-          if [ -f .gitmodules ]; then
-            sed -i '/\[submodule "drivers\/kernelsu"\]/,+3d' .gitmodules || true
-            [ -s .gitmodules ] || rm .gitmodules
-          fi
+          rm -rf KernelSU-Next
+          rm -rf .git/modules/drivers/kernelsu || true
+          rm -rf .git/modules/KernelSU-Next || true
+          rm -f .gitmodules
           
           git add -A
-          git commit -m "chore: wipe wrong submodule placement" || true
+          git commit -m "chore: full cleanup of submodules before re-injection" || true
 
-      - name: 2. Inject Submodule at ROOT (The Blue Folder)
+      - name: 2. Inject Submodule & Force .gitmodules format
         run: |
-          echo "Adding Sidex15 KernelSU as a direct submodule in the ROOT directory..."
+          echo "Adding KernelSU-Next as submodule..."
           git submodule add -b legacy-susfs-v2 https://github.com/sidex15/KernelSU-Next.git KernelSU-Next
           
-          echo "Locking submodule to the exact commit: 00cb93e..."
+          echo "Writing .gitmodules precisely as requested..."
+          cat <<EOF > .gitmodules
+[submodule "KernelSU-Next"]
+	path = KernelSU-Next
+	url = https://github.com/sidex15/KernelSU-Next
+	branch = legacy-susfs-v2
+EOF
+
+      - name: 3. Lock Submodule to Specific Commit
+        run: |
+          echo "Locking to commit 00cb93e..."
           cd KernelSU-Next
+          git fetch origin legacy-susfs-v2
           git checkout 00cb93e0bc8bf3ca3680c7e8a3d7cf11d0b59071
           cd ..
 
-      - name: 3. Create the Symlink in drivers/
+      - name: 4. Create Symbolic Link in drivers/
         run: |
-          echo "Creating the symbolic link in drivers folder..."
+          echo "Creating symlink: drivers/kernelsu -> ../KernelSU-Next/kernel"
           mkdir -p drivers
           cd drivers
-          # هذا هو الأمر الذي يصنع الاختصار بالسهم كما في صورتك
+          # إنشاء الاختصار الذي يشير لمجلد الكود الفعلي
           ln -s ../KernelSU-Next/kernel kernelsu
           cd ..
 
-      - name: 4. Finalize and Push
+      - name: 5. Finalize and Push to Mai31
         run: |
-          echo "Pushing changes to repository..."
+          echo "Committing structure changes..."
           git add .gitmodules KernelSU-Next drivers/kernelsu
-          git commit -m "feat: structured KernelSU submodule at root with symlink in drivers" || true
+          git commit -m "feat: structured KernelSU-Next with exact .gitmodules and symlink" || true
           git push origin Mai31
