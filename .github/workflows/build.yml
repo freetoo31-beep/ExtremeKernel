@@ -68,15 +68,18 @@ jobs:
         run: |
           echo "🔍 Fixing API Conflicts and applying Samsung patches..."
           
-          # أ- حل مشكلة تعارض SuSFS بين النواة والروت الرسمي
+          # أ- حل مشكلة تعارض SuSFS وإصلاح المتغيرات الداخلية
           if [ -f "include/linux/susfs.h" ]; then
-            sed -i 's/void susfs_add_try_umount(void __user \*\*user_info)/int susfs_add_try_umount(void __user \*arg)/g' include/linux/susfs.h
+            sed -i 's/void susfs_add_try_umount(void __user \*\*user_info)/int susfs_add_try_umount(void __user \*user_info)/g' include/linux/susfs.h
             echo "✅ Fixed susfs_add_try_umount in header"
           fi
           
           if [ -f "fs/susfs.c" ]; then
-            sed -i 's/void susfs_add_try_umount(void __user \*\*user_info)/int susfs_add_try_umount(void __user \*arg)/g' fs/susfs.c
-            echo "✅ Fixed susfs_add_try_umount in C file"
+            # 1. تغيير نوع الدالة مع الاحتفاظ باسم المتغير user_info
+            sed -i 's/void susfs_add_try_umount(void __user \*\*user_info)/int susfs_add_try_umount(void __user \*user_info)/g' fs/susfs.c
+            # 2. إزالة النجمة (*) الزائدة داخل الدالة والتي تسبب خطأ المترجم
+            sed -i 's/(struct st_susfs_try_umount __user\*)\*user_info/(struct st_susfs_try_umount __user\*)user_info/g' fs/susfs.c
+            echo "✅ Fixed susfs_add_try_umount variable references in C file"
           fi
 
           # ب- تغيير رقم الإصدار ليتوافق مع المدير 3.2.0 (إخفاء المربع الأحمر)
