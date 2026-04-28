@@ -34,13 +34,13 @@ jobs:
             echo "proceed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Checkout Kernel Source
+            - name: Checkout Kernel Source
         if: steps.check.outputs.proceed == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: 'recursive'
-          token: ${{ secrets.GH_PAT }}
+
 
       - name: 1. Fetch RAW Official KernelSU-Next
         if: steps.check.outputs.proceed == 'true'
